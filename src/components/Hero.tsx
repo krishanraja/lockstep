@@ -1,118 +1,209 @@
-import { motion } from "framer-motion";
-import { ArrowRight, Check, Clock, Users } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { motion, useScroll, useTransform } from "framer-motion";
+import { useRef } from "react";
+import { ArrowRight, Play } from "lucide-react";
+import { RotatingText } from "@/components/animations/KineticText";
+import { Reveal, MorphingBlob, Floating } from "@/components/animations/Reveal";
+import { HeroButton, SecondaryButton, PhoneMockup } from "@/components/animations/InteractiveElements";
 import lockstepLogoLight from "@/assets/lockstep-logo-light.png";
 
 const Hero = () => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const { scrollYProgress } = useScroll({
+    target: containerRef,
+    offset: ["start start", "end start"],
+  });
+
+  const y = useTransform(scrollYProgress, [0, 1], [0, 200]);
+  const opacity = useTransform(scrollYProgress, [0, 0.5], [1, 0]);
+  const scale = useTransform(scrollYProgress, [0, 0.5], [1, 0.95]);
+
+  const eventTypes = ["Weddings.", "Bachelor Parties.", "Family Reunions.", "Group Trips.", "Team Offsites."];
+
   return (
-    <section className="relative min-h-screen flex items-center justify-center px-6 py-24 overflow-hidden">
-      {/* Subtle gradient background */}
-      <div className="absolute inset-0 bg-gradient-to-b from-background via-background to-secondary/20" />
+    <section 
+      ref={containerRef}
+      className="relative min-h-[100svh] flex flex-col justify-center overflow-hidden px-6 py-20 md:py-32"
+    >
+      {/* Background effects */}
+      <div className="absolute inset-0 noise" />
       
-      {/* Subtle grid pattern */}
-      <div className="absolute inset-0 opacity-[0.02]" style={{
-        backgroundImage: `linear-gradient(hsl(var(--border)) 1px, transparent 1px),
-                          linear-gradient(90deg, hsl(var(--border)) 1px, transparent 1px)`,
-        backgroundSize: '64px 64px'
-      }} />
+      {/* Morphing gradient orbs */}
+      <MorphingBlob className="w-[600px] h-[600px] -top-40 -left-40" color="primary" />
+      <MorphingBlob className="w-[400px] h-[400px] top-1/2 -right-20 opacity-20" color="primary" />
       
-      <div className="relative z-10 max-w-4xl mx-auto text-center">
+      {/* Grid overlay - very subtle */}
+      <div 
+        className="absolute inset-0 opacity-[0.015]" 
+        style={{
+          backgroundImage: `
+            linear-gradient(hsl(var(--foreground)) 1px, transparent 1px),
+            linear-gradient(90deg, hsl(var(--foreground)) 1px, transparent 1px)
+          `,
+          backgroundSize: '100px 100px'
+        }} 
+      />
+
+      <motion.div 
+        className="relative z-10 max-w-7xl mx-auto w-full"
+        style={{ y, opacity, scale }}
+      >
         {/* Logo */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, ease: [0.4, 0, 0.2, 1] }}
-          className="mb-16"
-        >
-          <img 
+        <Reveal delay={0}>
+          <motion.img 
             src={lockstepLogoLight} 
             alt="Lockstep" 
-            className="h-8 md:h-10 mx-auto"
+            className="h-6 md:h-8 mb-12 md:mb-20"
           />
-        </motion.div>
+        </Reveal>
 
-        {/* Main headline */}
-        <motion.h1
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.1, ease: [0.4, 0, 0.2, 1] }}
-          className="text-4xl md:text-6xl lg:text-7xl font-semibold text-foreground leading-[1.1] tracking-tight mb-8"
-        >
-          Group decisions,
-          <br />
-          <span className="text-muted-foreground">resolved.</span>
-        </motion.h1>
+        <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
+          {/* Left content */}
+          <div className="order-2 lg:order-1">
+            {/* Main headline */}
+            <Reveal delay={0.1}>
+              <h1 className="font-display text-display-lg md:text-display-xl font-bold text-foreground mb-4">
+                Group
+              </h1>
+            </Reveal>
+            
+            <Reveal delay={0.2}>
+              <div className="font-display text-display-lg md:text-display-xl font-bold text-primary mb-4 min-h-[1.2em]">
+                <RotatingText words={eventTypes} interval={2500} />
+              </div>
+            </Reveal>
+            
+            <Reveal delay={0.3}>
+              <h1 className="font-display text-display-lg md:text-display-xl font-bold text-muted-foreground mb-8">
+                Resolved.
+              </h1>
+            </Reveal>
 
-        {/* Subheadline */}
-        <motion.p
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.2, ease: [0.4, 0, 0.2, 1] }}
-          className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-12 leading-relaxed"
-        >
-          Stop chasing people. Lockstep forces group decisions to close by deadlines—so you can stop asking and start planning.
-        </motion.p>
+            {/* Subheadline */}
+            <Reveal delay={0.4}>
+              <p className="text-lg md:text-xl text-muted-foreground max-w-lg mb-10 leading-relaxed">
+                Stop chasing people. Lockstep forces group decisions to close by 
+                deadlines—so you can stop asking and start planning.
+              </p>
+            </Reveal>
 
-        {/* CTA */}
+            {/* CTAs */}
+            <Reveal delay={0.5}>
+              <div className="flex flex-col sm:flex-row gap-4">
+                <HeroButton>
+                  Create your first event
+                  <ArrowRight className="w-5 h-5" />
+                </HeroButton>
+                <SecondaryButton>
+                  <Play className="w-4 h-4" />
+                  See how it works
+                </SecondaryButton>
+              </div>
+            </Reveal>
+
+            {/* Trust signal */}
+            <Reveal delay={0.6}>
+              <p className="mt-10 text-sm text-muted-foreground/60">
+                No account required to start • Free for small groups
+              </p>
+            </Reveal>
+          </div>
+
+          {/* Right content - Phone mockup */}
+          <div className="order-1 lg:order-2 flex justify-center lg:justify-end">
+            <Reveal delay={0.3} direction="scale">
+              <Floating duration={8} distance={15}>
+                <PhoneMockup className="w-72 md:w-80">
+                  <MiniRSVPDemo />
+                </PhoneMockup>
+              </Floating>
+            </Reveal>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Scroll indicator */}
+      <motion.div 
+        className="absolute bottom-8 left-1/2 -translate-x-1/2"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 1.5 }}
+      >
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.3, ease: [0.4, 0, 0.2, 1] }}
-          className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-20"
+          className="w-6 h-10 rounded-full border-2 border-muted-foreground/30 flex justify-center pt-2"
+          animate={{ y: [0, 5, 0] }}
+          transition={{ duration: 2, repeat: Infinity }}
         >
-          <Button variant="hero" size="xl" className="group">
-            Create your first event
-            <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />
-          </Button>
-          <Button variant="subtle" size="xl">
-            See how it works
-          </Button>
-        </motion.div>
-
-        {/* Value props */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.4, ease: [0.4, 0, 0.2, 1] }}
-          className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-3xl mx-auto"
-        >
-          <ValueProp 
-            icon={<Users className="w-5 h-5" />}
-            title="Collect answers"
-            description="Structured availability across multiple time blocks"
-          />
-          <ValueProp 
-            icon={<Clock className="w-5 h-5" />}
-            title="Set checkpoints"
-            description="Automatic reminders to those blocking progress"
-          />
-          <ValueProp 
-            icon={<Check className="w-5 h-5" />}
-            title="Get resolution"
-            description="A final, usable plan without the chasing"
+          <motion.div 
+            className="w-1 h-2 bg-muted-foreground/50 rounded-full"
+            animate={{ y: [0, 8, 0], opacity: [1, 0, 1] }}
+            transition={{ duration: 2, repeat: Infinity }}
           />
         </motion.div>
-      </div>
+      </motion.div>
     </section>
   );
 };
 
-const ValueProp = ({ 
-  icon, 
-  title, 
-  description 
-}: { 
-  icon: React.ReactNode; 
-  title: string; 
-  description: string;
-}) => (
-  <div className="flex flex-col items-center text-center">
-    <div className="w-12 h-12 rounded-xl bg-secondary flex items-center justify-center text-primary mb-4">
-      {icon}
+// Mini RSVP demo for phone mockup
+const MiniRSVPDemo = () => {
+  return (
+    <div className="p-4 space-y-4">
+      {/* Event header */}
+      <div className="text-center py-4">
+        <p className="text-xs text-muted-foreground mb-1">You're invited to</p>
+        <h3 className="font-display text-lg font-semibold">Sarah's Birthday</h3>
+        <p className="text-xs text-muted-foreground">Jun 15-17 • Lake Tahoe</p>
+      </div>
+
+      {/* Time blocks */}
+      <div className="space-y-2">
+        {[
+          { name: "Friday Evening", status: "confirmed" },
+          { name: "Saturday Day", status: "maybe" },
+          { name: "Saturday Night", status: "confirmed" },
+          { name: "Sunday AM", status: null },
+        ].map((block, i) => (
+          <motion.div
+            key={block.name}
+            className="flex items-center justify-between p-3 rounded-xl bg-secondary/50"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.5 + i * 0.1 }}
+          >
+            <span className="text-sm">{block.name}</span>
+            <div className="flex gap-1">
+              {["confirmed", "maybe", "out"].map((status) => (
+                <div
+                  key={status}
+                  className={`w-6 h-6 rounded-full flex items-center justify-center text-xs transition-all ${
+                    block.status === status
+                      ? status === "confirmed"
+                        ? "bg-confirmed text-background"
+                        : status === "maybe"
+                        ? "bg-maybe text-background"
+                        : "bg-out text-background"
+                      : "bg-muted/50"
+                  }`}
+                >
+                  {status === "confirmed" ? "✓" : status === "maybe" ? "?" : "✗"}
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        ))}
+      </div>
+
+      {/* Submit button */}
+      <motion.button
+        className="w-full py-3 bg-primary text-primary-foreground rounded-xl text-sm font-medium"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 1 }}
+      >
+        Submit Response
+      </motion.button>
     </div>
-    <h3 className="text-sm font-medium text-foreground mb-2">{title}</h3>
-    <p className="text-sm text-muted-foreground leading-relaxed">{description}</p>
-  </div>
-);
+  );
+};
 
 export default Hero;
