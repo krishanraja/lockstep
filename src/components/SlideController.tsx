@@ -1,6 +1,8 @@
-import { useState, useCallback, ReactNode } from "react";
+import { useState, useCallback, ReactNode, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSwipe, useKeyboardNavigation } from "@/hooks/use-swipe";
+import { useTransitionFeedback } from "@/hooks/use-transition-feedback";
+import { useAutoPlay } from "@/hooks/use-auto-play";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 interface SlideControllerProps {
@@ -12,33 +14,69 @@ const SlideController = ({ children }: SlideControllerProps) => {
   const [direction, setDirection] = useState(0);
   const totalSlides = children.length;
 
+  const { triggerTransitionFeedback } = useTransitionFeedback();
+
   const goToSlide = useCallback((index: number) => {
     if (index < 0 || index >= totalSlides) return;
-    setDirection(index > currentSlide ? 1 : -1);
+    const dir = index > currentSlide ? 1 : -1;
+    setDirection(dir);
     setCurrentSlide(index);
-  }, [currentSlide, totalSlides]);
+    triggerTransitionFeedback(dir > 0 ? "forward" : "backward");
+  }, [currentSlide, totalSlides, triggerTransitionFeedback]);
 
   const goNext = useCallback(() => {
     if (currentSlide < totalSlides - 1) {
       setDirection(1);
       setCurrentSlide(prev => prev + 1);
+      triggerTransitionFeedback("forward");
     }
-  }, [currentSlide, totalSlides]);
+  }, [currentSlide, totalSlides, triggerTransitionFeedback]);
 
   const goPrev = useCallback(() => {
     if (currentSlide > 0) {
       setDirection(-1);
       setCurrentSlide(prev => prev - 1);
+      triggerTransitionFeedback("backward");
     }
-  }, [currentSlide]);
+  }, [currentSlide, triggerTransitionFeedback]);
 
-  // Keyboard navigation
-  useKeyboardNavigation(goPrev, goNext);
+  // Auto-play functionality
+  const { isPaused, progress, handleUserInteraction } = useAutoPlay({
+    totalSlides,
+    intervalMs: 6000,
+    resumeDelayMs: 10000,
+    onAdvance: () => {
+      if (currentSlide < totalSlides - 1) {
+        setDirection(1);
+        setCurrentSlide(prev => prev + 1);
+        triggerTransitionFeedback("forward");
+      }
+    },
+  });
 
-  // Touch swipe
+  // Wrap navigation with user interaction handler
+  const handleGoNext = useCallback(() => {
+    handleUserInteraction();
+    goNext();
+  }, [handleUserInteraction, goNext]);
+
+  const handleGoPrev = useCallback(() => {
+    handleUserInteraction();
+    goPrev();
+  }, [handleUserInteraction, goPrev]);
+
+  const handleGoToSlide = useCallback((index: number) => {
+    handleUserInteraction();
+    goToSlide(index);
+  }, [handleUserInteraction, goToSlide]);
+
+  // Keyboard navigation with pause
+  useKeyboardNavigation(handleGoPrev, handleGoNext);
+
+  // Touch swipe with pause
   const swipeHandlers = useSwipe({
-    onSwipeLeft: goNext,
-    onSwipeRight: goPrev,
+    onSwipeLeft: handleGoNext,
+    onSwipeRight: handleGoPrev,
     threshold: 50,
   });
 
@@ -61,6 +99,8 @@ const SlideController = ({ children }: SlideControllerProps) => {
     <div 
       className="relative h-[100dvh] w-full overflow-hidden bg-background"
       {...swipeHandlers}
+      onMouseMove={handleUserInteraction}
+      onClick={handleUserInteraction}
     >
       {/* Slide content */}
       <AnimatePresence initial={false} custom={direction} mode="wait">
@@ -84,7 +124,7 @@ const SlideController = ({ children }: SlideControllerProps) => {
       {/* Navigation arrows - desktop only */}
       <div className="hidden md:flex absolute inset-y-0 left-4 items-center z-20">
         <motion.button
-          onClick={goPrev}
+          onClick={handleGoPrev}
           className={`p-3 rounded-full bg-button-bg text-button-text transition-opacity ${
             currentSlide === 0 ? "opacity-30 cursor-not-allowed" : "opacity-100 hover:opacity-80"
           }`}
@@ -97,7 +137,7 @@ const SlideController = ({ children }: SlideControllerProps) => {
       </div>
       <div className="hidden md:flex absolute inset-y-0 right-4 items-center z-20">
         <motion.button
-          onClick={goNext}
+          onClick={handleGoNext}
           className={`p-3 rounded-full bg-button-bg text-button-text transition-opacity ${
             currentSlide === totalSlides - 1 ? "opacity-30 cursor-not-allowed" : "opacity-100 hover:opacity-80"
           }`}
@@ -109,22 +149,44 @@ const SlideController = ({ children }: SlideControllerProps) => {
         </motion.button>
       </div>
 
-      {/* Navigation dots */}
+      {/* Navigation dots with progress indicator */}
       <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2">
         {Array.from({ length: totalSlides }).map((_, index) => (
           <motion.button
             key={index}
-            onClick={() => goToSlide(index)}
-            className={`rounded-full transition-all duration-300 ${
+            onClick={() => handleGoToSlide(index)}
+            className={`relative rounded-full transition-all duration-300 overflow-hidden ${
               index === currentSlide 
-                ? "w-8 h-2 bg-button-bg" 
+                ? "w-8 h-2 bg-muted-foreground/20" 
                 : "w-2 h-2 bg-muted-foreground/30 hover:bg-muted-foreground/50"
             }`}
             whileHover={{ scale: 1.2 }}
             whileTap={{ scale: 0.9 }}
-          />
+          >
+            {/* Progress fill for current slide */}
+            {index === currentSlide && !isPaused && (
+              <motion.div
+                className="absolute inset-0 bg-button-bg rounded-full origin-left"
+                style={{ scaleX: progress / 100 }}
+              />
+            )}
+            {index === currentSlide && isPaused && (
+              <div className="absolute inset-0 bg-button-bg rounded-full" />
+            )}
+          </motion.button>
         ))}
       </div>
+
+      {/* Auto-play indicator */}
+      {isPaused && (
+        <motion.div
+          className="absolute bottom-14 left-1/2 -translate-x-1/2 text-xs text-muted-foreground/40"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+        >
+          Paused
+        </motion.div>
+      )}
 
       {/* Swipe hint - mobile only, first slide only */}
       {currentSlide === 0 && (

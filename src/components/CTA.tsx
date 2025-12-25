@@ -1,10 +1,13 @@
 import { motion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { Reveal, MorphingBlob } from "@/components/animations/Reveal";
 import { HeroButton } from "@/components/animations/InteractiveElements";
 import lockstepIcon from "@/assets/lockstep-icon.png";
 
 const CTA = () => {
+  const navigate = useNavigate();
+  
   return (
     <div className="relative h-full w-full flex flex-col overflow-hidden px-4 md:px-8 py-6 md:py-10">
       {/* Background effects */}
@@ -54,7 +57,7 @@ const CTA = () => {
 
         {/* CTA */}
         <Reveal delay={0.5}>
-          <HeroButton>
+          <HeroButton onClick={() => navigate("/create")}>
             Create your first event
             <ArrowRight className="w-4 h-4 md:w-5 md:h-5" />
           </HeroButton>
