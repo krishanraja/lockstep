@@ -1,91 +1,84 @@
 import { motion } from "framer-motion";
 import { MessageSquare, Bell, BarChart3, Zap } from "lucide-react";
+import { Reveal, StaggerContainer, StaggerItem } from "@/components/animations/Reveal";
 
 const features = [
   {
-    icon: <MessageSquare className="w-6 h-6" />,
+    icon: MessageSquare,
     title: "Magic link RSVPs",
-    description: "No app downloads. No sign-ups. Guests respond in under 30 seconds via SMS or WhatsApp.",
+    description: "No app downloads. Guests respond in 30 seconds via SMS.",
   },
   {
-    icon: <Bell className="w-6 h-6" />,
+    icon: Bell,
     title: "Smart nudges",
-    description: "Automatic reminders only go to people blocking progress. Escalation without awkwardness.",
+    description: "Automatic reminders only to people blocking progress.",
   },
   {
-    icon: <BarChart3 className="w-6 h-6" />,
+    icon: BarChart3,
     title: "Real-time clarity",
-    description: "See exactly who's in, who's out, and what's unresolved—all in one calm dashboard.",
+    description: "See who's in, out, and what's unresolved in one view.",
   },
   {
-    icon: <Zap className="w-6 h-6" />,
+    icon: Zap,
     title: "Auto-resolution",
-    description: "Set rules for unanswered checkpoints. No response means a decision gets made anyway.",
+    description: "No response by deadline? Decision gets made anyway.",
   },
 ];
 
 const Features = () => {
   return (
-    <section className="relative py-32 px-6">
-      <div className="max-w-5xl mx-auto">
+    <div className="relative h-full w-full flex flex-col overflow-hidden px-4 md:px-8 py-6 md:py-10">
+      {/* Background */}
+      <div className="absolute inset-0 bg-gradient-to-b from-background via-secondary/20 to-background" />
+      
+      <div className="relative z-10 flex-1 flex flex-col justify-center max-w-5xl mx-auto w-full">
         {/* Section header */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-100px" }}
-          transition={{ duration: 0.8, ease: [0.4, 0, 0.2, 1] }}
-          className="text-center mb-20"
-        >
-          <h2 className="text-3xl md:text-4xl font-semibold text-foreground mb-6">
-            Built for organisers who are tired of chasing
-          </h2>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Every feature exists to reduce your anxiety and close open loops—nothing decorative, nothing unnecessary.
-          </p>
-        </motion.div>
-
-        {/* Feature grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {features.map((feature, index) => (
-            <motion.div
-              key={feature.title}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: "-50px" }}
-              transition={{ 
-                duration: 0.8, 
-                delay: index * 0.1,
-                ease: [0.4, 0, 0.2, 1] 
-              }}
-            >
-              <FeatureCard {...feature} />
-            </motion.div>
-          ))}
+        <div className="text-center mb-8 md:mb-12">
+          <Reveal>
+            <p className="text-xs font-medium text-primary mb-2 tracking-wider uppercase">
+              How it works
+            </p>
+          </Reveal>
+          <Reveal delay={0.1}>
+            <h2 className="font-display text-display-md md:text-display-lg font-bold text-foreground mb-3">
+              Built for organisers tired of chasing
+            </h2>
+          </Reveal>
+          <Reveal delay={0.2}>
+            <p className="text-sm md:text-base text-muted-foreground max-w-xl mx-auto">
+              Every feature exists to reduce your anxiety and close open loops.
+            </p>
+          </Reveal>
         </div>
+
+        {/* Feature grid - 2x2 */}
+        <StaggerContainer className="grid grid-cols-2 gap-3 md:gap-6" staggerDelay={0.1}>
+          {features.map((feature) => (
+            <StaggerItem key={feature.title}>
+              <motion.div 
+                className="p-4 md:p-6 rounded-xl bg-card/50 border border-border/50 h-full"
+                whileHover={{ y: -2, borderColor: "hsl(var(--muted-foreground) / 0.3)" }}
+                transition={{ duration: 0.2 }}
+              >
+                {/* Icon */}
+                <div className="w-10 h-10 md:w-12 md:h-12 rounded-lg bg-button-bg flex items-center justify-center mb-3 md:mb-4">
+                  <feature.icon className="w-5 h-5 md:w-6 md:h-6 text-button-text" />
+                </div>
+
+                {/* Content */}
+                <h3 className="font-display text-sm md:text-base font-semibold text-foreground mb-1 md:mb-2">
+                  {feature.title}
+                </h3>
+                <p className="text-xs md:text-sm text-muted-foreground leading-relaxed">
+                  {feature.description}
+                </p>
+              </motion.div>
+            </StaggerItem>
+          ))}
+        </StaggerContainer>
       </div>
-    </section>
+    </div>
   );
 };
-
-const FeatureCard = ({ 
-  icon, 
-  title, 
-  description 
-}: { 
-  icon: React.ReactNode; 
-  title: string; 
-  description: string;
-}) => (
-  <div className="group relative p-8 rounded-2xl bg-card border border-border hover:border-muted-foreground/30 transition-all duration-500">
-    {/* Icon */}
-    <div className="w-14 h-14 rounded-xl bg-secondary flex items-center justify-center text-primary mb-6 transition-all duration-300 group-hover:scale-105">
-      {icon}
-    </div>
-    
-    {/* Content */}
-    <h3 className="text-lg font-medium text-foreground mb-3">{title}</h3>
-    <p className="text-muted-foreground leading-relaxed">{description}</p>
-  </div>
-);
 
 export default Features;

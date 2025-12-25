@@ -61,16 +61,18 @@ export default {
         confirmed: "hsl(var(--confirmed))",
         maybe: "hsl(var(--maybe))",
         out: "hsl(var(--out))",
+        "button-bg": "hsl(var(--button-bg))",
+        "button-text": "hsl(var(--button-text))",
       },
       fontFamily: {
         sans: ["Inter", "system-ui", "sans-serif"],
         display: ["Space Grotesk", "system-ui", "sans-serif"],
       },
       fontSize: {
-        "display-xl": ["clamp(3rem, 10vw, 8rem)", { lineHeight: "1", letterSpacing: "-0.02em" }],
-        "display-lg": ["clamp(2.5rem, 8vw, 6rem)", { lineHeight: "1.05", letterSpacing: "-0.02em" }],
-        "display-md": ["clamp(2rem, 5vw, 4rem)", { lineHeight: "1.1", letterSpacing: "-0.01em" }],
-        "display-sm": ["clamp(1.5rem, 4vw, 2.5rem)", { lineHeight: "1.2", letterSpacing: "-0.01em" }],
+        "display-xl": ["clamp(2.5rem, 8vw, 5rem)", { lineHeight: "1", letterSpacing: "-0.02em" }],
+        "display-lg": ["clamp(2rem, 6vw, 3.5rem)", { lineHeight: "1.05", letterSpacing: "-0.02em" }],
+        "display-md": ["clamp(1.5rem, 4vw, 2.5rem)", { lineHeight: "1.1", letterSpacing: "-0.01em" }],
+        "display-sm": ["clamp(1.25rem, 3vw, 1.75rem)", { lineHeight: "1.2", letterSpacing: "-0.01em" }],
       },
       borderRadius: {
         lg: "var(--radius)",

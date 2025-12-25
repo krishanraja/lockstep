@@ -44,6 +44,10 @@
     
     --radius: 0.75rem;
     
+    /* Button colors - Light #F5F7FA with dark text */
+    --button-bg: 220 33% 97%;
+    --button-text: 220 25% 10%;
+    
     /* Gradients */
     --gradient-hero: linear-gradient(135deg, hsl(250 100% 65% / 0.15), hsl(280 100% 60% / 0.1), transparent);
     --gradient-glow: radial-gradient(ellipse at center, hsl(250 100% 65% / 0.2), transparent 70%);
@@ -92,6 +96,9 @@
     --border: 220 15% 15%;
     --input: 220 15% 12%;
     --ring: 250 100% 65%;
+    
+    --button-bg: 220 33% 97%;
+    --button-text: 220 25% 10%;
   }
 }
 
@@ -101,46 +108,34 @@
   }
 
   html {
-    scroll-behavior: smooth;
-    scroll-snap-type: y proximity;
+    overflow: hidden;
+    height: 100dvh;
   }
 
   body {
     @apply bg-background text-foreground antialiased;
     font-family: 'Inter', system-ui, sans-serif;
+    overflow: hidden;
+    height: 100dvh;
   }
 
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Space Grotesk', system-ui, sans-serif;
   }
 
-  /* Hide scrollbar but allow scrolling */
+  /* Hide scrollbar */
   ::-webkit-scrollbar {
-    width: 6px;
+    display: none;
   }
   
-  ::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  
-  ::-webkit-scrollbar-thumb {
-    background: hsl(var(--border));
-    border-radius: 3px;
-  }
-  
-  ::-webkit-scrollbar-thumb:hover {
-    background: hsl(var(--muted-foreground));
+  * {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
   }
 }
 
 /* Ceros-inspired animations */
 @layer utilities {
-  /* Scroll snap sections */
-  .snap-section {
-    scroll-snap-align: start;
-    scroll-snap-stop: always;
-  }
-
   /* Kinetic text underline */
   .kinetic-underline {
     background-image: linear-gradient(90deg, hsl(var(--primary)), hsl(var(--primary)));
@@ -223,6 +218,15 @@
   /* Magnetic button effect base */
   .magnetic {
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Button colors */
+  .bg-button-bg {
+    background-color: hsl(var(--button-bg));
+  }
+  
+  .text-button-text {
+    color: hsl(var(--button-text));
   }
 }
 
