@@ -1,6 +1,8 @@
-import { motion } from "framer-motion";
 import { useState } from "react";
+import { motion } from "framer-motion";
 import { Check, Minus, HelpCircle } from "lucide-react";
+import { Reveal } from "@/components/animations/Reveal";
+import { GlassCard } from "@/components/animations/InteractiveElements";
 
 type Status = "in" | "out" | "maybe";
 
@@ -16,8 +18,7 @@ const RSVPDemo = () => {
     { id: "1", name: "Friday Night", time: "6pm onwards", status: "in" },
     { id: "2", name: "Saturday Daytime", time: "10am - 4pm", status: "in" },
     { id: "3", name: "Saturday Dinner", time: "7pm - 10pm", status: "maybe" },
-    { id: "4", name: "Saturday Night", time: "10pm onwards", status: "in" },
-    { id: "5", name: "Sunday Brunch", time: "10am - 1pm", status: "out" },
+    { id: "4", name: "Sunday Brunch", time: "10am - 1pm", status: "out" },
   ]);
 
   const updateStatus = (id: string, newStatus: Status) => {
@@ -29,59 +30,54 @@ const RSVPDemo = () => {
   };
 
   return (
-    <section className="relative py-32 px-6 bg-secondary/30">
-      <div className="max-w-4xl mx-auto">
+    <div className="relative h-full w-full flex flex-col overflow-hidden px-4 md:px-8 py-6 md:py-10">
+      {/* Background */}
+      <div className="absolute inset-0 bg-gradient-to-b from-background via-primary/5 to-background" />
+      
+      <div className="relative z-10 flex-1 flex flex-col justify-center max-w-lg mx-auto w-full">
         {/* Section header */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-100px" }}
-          transition={{ duration: 0.8, ease: [0.4, 0, 0.2, 1] }}
-          className="text-center mb-16"
-        >
-          <h2 className="text-3xl md:text-4xl font-semibold text-foreground mb-6">
-            15 seconds to respond
-          </h2>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            No app to download. No account to create. Guests tap a link and answer—that's it.
-          </p>
-        </motion.div>
+        <div className="text-center mb-6 md:mb-8">
+          <Reveal>
+            <p className="text-xs font-medium text-primary mb-2 tracking-wider uppercase">
+              Guest Experience
+            </p>
+          </Reveal>
+          <Reveal delay={0.1}>
+            <h2 className="font-display text-display-md md:text-display-lg font-bold text-foreground mb-2">
+              15 seconds to respond
+            </h2>
+          </Reveal>
+          <Reveal delay={0.2}>
+            <p className="text-sm text-muted-foreground">
+              No app to download. No account to create.
+            </p>
+          </Reveal>
+        </div>
 
-        {/* RSVP Demo Card */}
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-50px" }}
-          transition={{ duration: 0.8, ease: [0.4, 0, 0.2, 1] }}
-          className="max-w-md mx-auto"
-        >
-          <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-2xl shadow-black/20">
+        {/* RSVP Card */}
+        <Reveal delay={0.3} direction="scale">
+          <GlassCard className="overflow-hidden">
             {/* Header */}
-            <div className="p-6 border-b border-border">
-              <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">
+            <div className="p-4 md:p-5 border-b border-border/50">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">
                 You're invited to
               </p>
-              <h3 className="text-xl font-semibold text-foreground">
+              <h3 className="font-display text-lg font-semibold text-foreground">
                 Tom's Bucks Weekend
               </h3>
-              <p className="text-sm text-muted-foreground mt-1">
+              <p className="text-xs text-muted-foreground mt-0.5">
                 March 14-16 • Byron Bay
               </p>
             </div>
 
             {/* Time blocks */}
-            <div className="p-4 space-y-3">
+            <div className="p-3 md:p-4 space-y-2">
               {blocks.map((block, index) => (
                 <motion.div
                   key={block.id}
-                  initial={{ opacity: 0, x: -20 }}
-                  whileInView={{ opacity: 1, x: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ 
-                    duration: 0.5, 
-                    delay: 0.1 + index * 0.08,
-                    ease: [0.4, 0, 0.2, 1] 
-                  }}
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.4 + index * 0.05 }}
                 >
                   <TimeBlockRow 
                     block={block} 
@@ -92,22 +88,19 @@ const RSVPDemo = () => {
             </div>
 
             {/* Submit */}
-            <div className="p-6 pt-4">
+            <div className="p-4 md:p-5 pt-2">
               <motion.button
                 whileHover={{ scale: 1.01 }}
                 whileTap={{ scale: 0.99 }}
-                className="w-full py-4 bg-primary text-primary-foreground font-medium rounded-xl transition-all duration-300 hover:bg-primary/90"
+                className="w-full py-3 bg-button-bg text-button-text font-medium rounded-xl text-sm"
               >
                 Confirm my availability
               </motion.button>
-              <p className="text-xs text-center text-muted-foreground mt-4">
-                You can update this later if plans change
-              </p>
             </div>
-          </div>
-        </motion.div>
+          </GlassCard>
+        </Reveal>
       </div>
-    </section>
+    </div>
   );
 };
 
@@ -119,13 +112,13 @@ const TimeBlockRow = ({
   onStatusChange: (status: Status) => void;
 }) => {
   return (
-    <div className="flex items-center justify-between p-4 bg-secondary/50 rounded-xl">
-      <div className="flex-1 min-w-0 mr-4">
+    <div className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg">
+      <div className="flex-1 min-w-0 mr-3">
         <p className="text-sm font-medium text-foreground truncate">{block.name}</p>
-        <p className="text-xs text-muted-foreground">{block.time}</p>
+        <p className="text-[10px] text-muted-foreground">{block.time}</p>
       </div>
       
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-1">
         <StatusButton 
           status="in" 
           active={block.status === "in"} 
@@ -157,17 +150,17 @@ const StatusButton = ({
 }) => {
   const config = {
     in: { 
-      icon: <Check className="w-4 h-4" />, 
+      icon: <Check className="w-3.5 h-3.5" />, 
       activeClass: "bg-confirmed/20 text-confirmed border-confirmed/40",
       label: "In"
     },
     maybe: { 
-      icon: <HelpCircle className="w-4 h-4" />, 
+      icon: <HelpCircle className="w-3.5 h-3.5" />, 
       activeClass: "bg-maybe/20 text-maybe border-maybe/40",
       label: "Maybe"
     },
     out: { 
-      icon: <Minus className="w-4 h-4" />, 
+      icon: <Minus className="w-3.5 h-3.5" />, 
       activeClass: "bg-out/20 text-out border-out/40",
       label: "Out"
     },
@@ -182,11 +175,11 @@ const StatusButton = ({
       onClick={onClick}
       aria-label={label}
       className={`
-        w-10 h-10 rounded-lg border flex items-center justify-center
-        transition-all duration-300
+        w-8 h-8 rounded-lg border flex items-center justify-center
+        transition-all duration-200
         ${active 
           ? activeClass 
-          : "bg-background border-border text-muted-foreground hover:text-foreground hover:border-muted-foreground"
+          : "bg-background border-border text-muted-foreground hover:text-foreground"
         }
       `}
     >

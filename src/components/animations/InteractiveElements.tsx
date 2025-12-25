@@ -87,34 +87,34 @@ export const PhoneMockup = ({ children, className = "" }: PhoneMockupProps) => {
   return (
     <div className={`relative ${className}`}>
       {/* Phone frame */}
-      <div className="relative bg-card rounded-[3rem] p-3 shadow-2xl shadow-black/50">
+      <div className="relative bg-card rounded-[2rem] p-2 shadow-2xl shadow-black/50">
         {/* Notch */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-7 bg-card rounded-b-2xl z-10" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-24 h-5 bg-card rounded-b-xl z-10" />
         
         {/* Screen */}
-        <div className="relative bg-background rounded-[2.5rem] overflow-hidden">
+        <div className="relative bg-background rounded-[1.5rem] overflow-hidden">
           {/* Status bar */}
-          <div className="h-12 px-8 flex items-center justify-between text-xs text-muted-foreground">
+          <div className="h-8 px-6 flex items-center justify-between text-[10px] text-muted-foreground">
             <span>9:41</span>
             <div className="flex items-center gap-1">
-              <div className="w-4 h-2 rounded-sm border border-muted-foreground/50" />
+              <div className="w-3 h-1.5 rounded-sm border border-muted-foreground/50" />
             </div>
           </div>
           
-          {/* Content */}
-          <div className="min-h-[500px]">
+          {/* Content - reduced height for fitting */}
+          <div className="max-h-[45vh]">
             {children}
           </div>
           
           {/* Home indicator */}
-          <div className="h-8 flex items-center justify-center pb-2">
-            <div className="w-32 h-1 bg-muted-foreground/30 rounded-full" />
+          <div className="h-6 flex items-center justify-center pb-1">
+            <div className="w-24 h-1 bg-muted-foreground/30 rounded-full" />
           </div>
         </div>
       </div>
       
       {/* Glow effect */}
-      <div className="absolute -inset-10 bg-primary/10 blur-3xl rounded-full -z-10" />
+      <div className="absolute -inset-8 bg-primary/10 blur-3xl rounded-full -z-10" />
     </div>
   );
 };
@@ -129,7 +129,7 @@ export const HeroButton = ({ children, className = "", onClick }: HeroButtonProp
   return (
     <motion.button
       className={`
-        relative px-8 py-4 bg-primary text-primary-foreground font-display font-semibold
+        relative px-6 py-3 md:px-8 md:py-4 bg-button-bg text-button-text font-display font-semibold
         rounded-xl overflow-hidden group
         ${className}
       `}
@@ -139,16 +139,11 @@ export const HeroButton = ({ children, className = "", onClick }: HeroButtonProp
     >
       {/* Shimmer effect */}
       <motion.div
-        className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
+        className="absolute inset-0 bg-gradient-to-r from-transparent via-foreground/10 to-transparent"
         initial={{ x: "-100%" }}
         whileHover={{ x: "100%" }}
         transition={{ duration: 0.6 }}
       />
-      
-      {/* Glow */}
-      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-        <div className="absolute inset-0 bg-primary-glow blur-xl opacity-50" />
-      </div>
       
       <span className="relative z-10 flex items-center gap-2">
         {children}
@@ -167,9 +162,8 @@ export const SecondaryButton = ({ children, className = "", onClick }: Secondary
   return (
     <motion.button
       className={`
-        relative px-8 py-4 bg-transparent border border-border text-foreground font-display font-medium
+        relative px-6 py-3 md:px-8 md:py-4 bg-button-bg text-button-text font-display font-medium
         rounded-xl overflow-hidden group
-        hover:border-muted-foreground/50 transition-colors duration-300
         ${className}
       `}
       whileHover={{ scale: 1.02 }}
