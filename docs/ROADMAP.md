@@ -1561,37 +1561,37 @@ const sendableGuests = guests.filter(g => g.status !== 'opted_out');
 
 ### Phase 1: Foundation (Weeks 1-2)
 - [x] Database schema with RLS
-- [ ] Auth flow for organisers
-- [ ] Basic RSVP page (magic link)
-- [ ] SMS sending via Twilio
-- [ ] Event creation (basic, no wizard)
+- [x] Auth flow for organisers
+- [x] Basic RSVP page (magic link)
+- [x] SMS sending via Twilio (Edge Function created)
+- [x] Event creation (wizard-based)
 
 ### Phase 2: Core Flow (Weeks 3-4)
-- [ ] Checkpoint system
-- [ ] Automated nudge sending
-- [ ] Guest management UI
-- [ ] Dashboard with headcounts
-- [ ] Block CRUD
+- [x] Checkpoint system
+- [x] Automated nudge sending (Edge Function created)
+- [x] Guest management UI
+- [x] Dashboard with headcounts
+- [x] Block CRUD
 
 ### Phase 3: Polish (Weeks 5-6)
-- [ ] Event creation wizard (animated)
-- [ ] Framer Motion transitions
+- [x] Event creation wizard (animated, 6-step conversational)
+- [x] Framer Motion transitions
 - [ ] Heatmap visualization
-- [ ] Open loops list with one-tap nudge
-- [ ] Mobile-first responsive design
+- [x] Open loops list with one-tap nudge
+- [x] Mobile-first responsive design
 
 ### Phase 4: Messaging (Weeks 7-8)
-- [ ] WhatsApp integration
+- [x] WhatsApp integration (Edge Function ready)
 - [ ] Inbound message handling (STOP, HELP)
 - [ ] Status callbacks
 - [ ] Escalation logic
-- [ ] Deep links to missing fields
+- [x] Deep links to missing fields
 
 ### Phase 5: AI (Weeks 9-10)
-- [ ] LLM router setup
-- [ ] Status summaries
-- [ ] Suggested next actions
-- [ ] Tone-aware nudge copy
+- [x] LLM router setup (Google AI primary, OpenAI fallback)
+- [x] Status summaries (Edge Function created)
+- [x] Suggested next actions
+- [x] Tone-aware nudge copy
 - [ ] Summary caching
 
 ### Phase 6: Launch (Weeks 11-12)
@@ -1600,7 +1600,7 @@ const sendableGuests = guests.filter(g => g.status !== 'opted_out');
 - [ ] CSV export
 - [ ] Bug fixes and polish
 - [ ] Beta user testing
-- [ ] Production deployment
+- [x] Production deployment (Vercel configured)
 
 ---
 
@@ -1611,10 +1611,10 @@ const sendableGuests = guests.filter(g => g.status !== 'opted_out');
 |-----------|----------|--------|
 | LandingPage | P0 | ✅ Built |
 | AuthPage | P0 | ✅ Built |
-| CreateEventWizard | P0 | 🔄 In Progress |
-| RSVPPage | P0 | 🔜 Planned |
-| DashboardPage | P0 | 🔜 Planned |
-| EventDetailPage | P1 | 🔜 Planned |
+| CreateEventWizard | P0 | ✅ Built (6-step conversational) |
+| RSVPPage | P0 | ✅ Built (with positive bias) |
+| DashboardPage | P0 | ✅ Built (with AI insights) |
+| EventDetailPage | P1 | ✅ Built |
 | GuestManagerPage | P1 | 🔜 Planned |
 | PublicPlanPage | P1 | 🔜 Planned |
 
@@ -1624,22 +1624,39 @@ const sendableGuests = guests.filter(g => g.status !== 'opted_out');
 | Button (variants) | P0 | ✅ Built |
 | Card | P0 | ✅ Built |
 | Input | P0 | ✅ Built |
-| SegmentedControl | P0 | 🔜 Planned |
-| BlockCard | P0 | 🔜 Planned |
+| SegmentedControl | P0 | ✅ Built (in RSVP) |
+| BlockCard | P0 | ✅ Built |
 | TimeRangeSlider | P0 | 🔜 Planned |
 | CheckpointTimeline | P1 | 🔜 Planned |
 | HeatmapGrid | P1 | 🔜 Planned |
-| OpenLoopsList | P0 | 🔜 Planned |
-| StepperWizard | P0 | 🔄 In Progress |
+| OpenLoopsList | P0 | ✅ Built |
+| StepperWizard | P0 | ✅ Built |
+| PlacesAutocomplete | P1 | ✅ Built |
+| EventTypeCard | P0 | ✅ Built |
+| WeekendPicker | P0 | ✅ Built |
+| AIGeneratedCard | P1 | ✅ Built |
 
 ### Edge Functions
 | Function | Priority | Status |
 |----------|----------|--------|
-| send-nudge | P0 | 🔜 Planned |
+| generate-description | P0 | ✅ Built |
+| generate-summary | P0 | ✅ Built |
+| send-nudge | P0 | ✅ Built |
 | process-checkpoint | P0 | 🔜 Planned |
-| generate-summary | P1 | 🔜 Planned |
-| webhook-twilio | P0 | 🔜 Planned |
+| webhook-twilio | P1 | 🔜 Planned |
 | stripe-webhook | P2 | 🔜 Planned |
+
+### Event Templates
+| Template | Status |
+|----------|--------|
+| Bucks Party | ✅ Built |
+| Hens Party | ✅ Built |
+| Wedding | ✅ Built |
+| Birthday | ✅ Built |
+| Reunion | ✅ Built |
+| Trip | ✅ Built |
+| Team Offsite | ✅ Built |
+| Custom | ✅ Built |
 
 ---
 

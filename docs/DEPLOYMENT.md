@@ -3,7 +3,7 @@
 ## Overview
 
 Lockstep uses a modern JAMstack architecture with:
-- **Frontend**: Static React app deployed to Lovable's CDN
+- **Frontend**: Static React app deployed to Vercel
 - **Backend**: Supabase (PostgreSQL, Auth, Edge Functions, Storage)
 
 ---
@@ -13,20 +13,21 @@ Lockstep uses a modern JAMstack architecture with:
 | Environment | URL | Branch | Purpose |
 |-------------|-----|--------|---------|
 | Production | `lockstep.app` | `main` | Live users |
-| Staging | `*.lovable.app` | `main` | Pre-release testing |
 | Preview | PR-specific URLs | Feature branches | PR review |
+| Development | `localhost:8080` | Local | Development |
 
 ---
 
 ## Frontend Deployment
 
-### Lovable Platform
+### Vercel Platform
 
-Frontend deploys automatically via Lovable:
+Frontend deploys automatically via Vercel GitHub integration:
 
-1. **Development**: Changes appear instantly in preview iframe
-2. **Publishing**: Click "Publish" → "Update" to deploy to production
-3. **Custom Domain**: Configure in Project Settings → Domains
+1. **Development**: Run `npm run dev` locally
+2. **Preview**: Every PR gets a preview deployment
+3. **Production**: Merge to `main` triggers production deploy
+4. **Custom Domain**: Configure in Vercel Project Settings → Domains
 
 ### Build Process
 
@@ -44,23 +45,12 @@ dist/
 └── ...
 ```
 
-### Build Configuration
+### Vercel Configuration
 
-**vite.config.ts**:
-```ts
-export default defineConfig({
-  build: {
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom'],
-          ui: ['@radix-ui/react-*'],
-        }
-      }
-    }
-  }
-})
-```
+See `vercel.json` for:
+- SPA rewrites (all routes → index.html)
+- Security headers
+- Asset caching
 
 ---
 
@@ -68,13 +58,11 @@ export default defineConfig({
 
 ### Supabase Configuration
 
-Backend is managed via Lovable Cloud (Supabase under the hood):
-
 | Component | Deployment |
 |-----------|------------|
 | Database | Migrations in `supabase/migrations/` |
-| Auth | Configured via Lovable tools |
-| Edge Functions | `supabase/functions/` → Auto-deployed |
+| Auth | Configured via Supabase Dashboard |
+| Edge Functions | `supabase/functions/` |
 | Storage | Configured via Dashboard |
 
 ### Database Migrations
@@ -84,13 +72,16 @@ Migrations are SQL files in `supabase/migrations/`:
 ```
 supabase/migrations/
 ├── 20251225063926_initial_schema.sql
-├── 20251226120000_add_nudges.sql
+├── 20251226120000_add_schema_updates.sql
 └── ...
 ```
 
-**Creating migrations**: Use the Lovable migration tool (never edit manually).
+**Creating migrations**: Use Supabase CLI or Dashboard.
 
-**Applying migrations**: Automatic on approval in Lovable.
+**Applying migrations**: 
+```bash
+supabase db push
+```
 
 ### Edge Functions
 
@@ -98,44 +89,50 @@ Located in `supabase/functions/`:
 
 ```
 supabase/functions/
-├── send-nudge/
+├── generate-description/
 │   └── index.ts
 ├── generate-summary/
 │   └── index.ts
-└── ...
+├── send-nudge/
+│   └── index.ts
+├── process-checkpoint/
+│   └── index.ts
+└── webhook-twilio/
+    └── index.ts
 ```
 
-**Deployment**: Automatic when files change.
-
-**Testing**: Use `supabase--curl_edge_functions` tool.
+**Deployment**:
+```bash
+supabase functions deploy <function-name>
+```
 
 ---
 
 ## Environment Variables
 
-### Frontend (Client-side)
+### Frontend (Vercel)
 
-Exposed to browser (must be prefixed with `VITE_`):
+Set in Vercel Project Settings → Environment Variables:
 
-| Variable | Source |
-|----------|--------|
-| `VITE_SUPABASE_URL` | Auto-configured |
-| `VITE_SUPABASE_PUBLISHABLE_KEY` | Auto-configured |
+| Variable | Description |
+|----------|-------------|
+| `VITE_SUPABASE_URL` | Supabase project URL |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | Supabase anon key |
+| `VITE_GOOGLE_PLACES_API_KEY` | Google Places API key |
 
-### Backend (Secrets)
+### Backend (Supabase Secrets)
 
-Server-side only, never exposed to client:
+Set in Supabase Dashboard → Edge Functions → Secrets:
 
 | Secret | Purpose |
 |--------|---------|
-| `SUPABASE_SERVICE_ROLE_KEY` | Admin database access |
-| `OPENAI_API_KEY` | AI summaries |
-| `GOOGLE_AI_API_KEY` | AI summaries (alt) |
-| `TWILIO_ACCOUNT_SID` | SMS sending |
-| `TWILIO_AUTH_TOKEN` | SMS authentication |
+| `GOOGLE_AI_API_KEY` | Primary LLM (Gemini) |
+| `OPENAI_API_KEY` | Fallback LLM |
+| `TWILIO_ACCOUNT_SID` | SMS/WhatsApp |
+| `TWILIO_API_SECRET` | SMS authentication |
 | `RESEND_API_KEY` | Email sending |
 
-**Managing secrets**: Use Lovable's secrets tool.
+See `docs/ENV_VARIABLES.md` for complete documentation.
 
 ---
 
@@ -143,26 +140,27 @@ Server-side only, never exposed to client:
 
 ### Before Deploy
 
-- [ ] All tests passing locally
-- [ ] No TypeScript errors (`npm run typecheck`)
+- [ ] All TypeScript errors resolved
 - [ ] No lint errors (`npm run lint`)
-- [ ] Preview tested in Lovable
+- [ ] Local build succeeds (`npm run build`)
 - [ ] Database migrations reviewed
 
 ### Production Deploy
 
-- [ ] Merge to `main` branch
-- [ ] Click "Publish" → "Update" in Lovable
-- [ ] Verify production site loads
-- [ ] Test critical user flows
-- [ ] Check error monitoring (if configured)
+1. Push to `main` branch
+2. Vercel auto-deploys
+3. Verify production site loads
+4. Test critical user flows:
+   - Event creation wizard
+   - RSVP flow
+   - Dashboard
 
 ### Post-Deploy
 
 - [ ] Monitor for errors (15 min)
 - [ ] Verify database migrations applied
 - [ ] Test edge functions
-- [ ] Notify team of deployment
+- [ ] Check AI integrations working
 
 ---
 
@@ -170,10 +168,10 @@ Server-side only, never exposed to client:
 
 ### Frontend Rollback
 
-1. Go to Lovable project settings
-2. View deployment history
-3. Click "Restore" on previous version
-4. Verify rollback successful
+1. Go to Vercel Dashboard
+2. View Deployments tab
+3. Click "..." on previous deployment
+4. Select "Promote to Production"
 
 ### Database Rollback
 
@@ -181,23 +179,21 @@ Server-side only, never exposed to client:
 
 1. Create a backup before risky migrations
 2. Write reverse migrations when possible
-3. Contact support for point-in-time recovery
+3. Use Supabase point-in-time recovery if needed
 
 ### Edge Function Rollback
 
 1. Revert code changes in Git
-2. Push to trigger new deployment
-3. Or manually deploy previous version
+2. Redeploy: `supabase functions deploy <name>`
 
 ---
 
 ## Monitoring
 
-### Error Tracking (Recommended Setup)
+### Error Tracking
 
-Options:
+Recommended:
 - Sentry (frontend + edge functions)
-- LogRocket (frontend session replay)
 - Supabase Logs (database + auth)
 
 ### Health Checks
@@ -208,59 +204,36 @@ Options:
 | Auth | Login flow works |
 | Database | Query returns data |
 | Edge Functions | Test endpoint responds |
+| AI | Description generation works |
 
-### Alerts
-
-Configure alerts for:
-- 5xx error rate > 1%
-- Database connection failures
-- Edge function timeouts
-- Auth failures spike
-
----
-
-## Performance Optimization
-
-### Frontend
-
-- **Code splitting**: Dynamic imports for routes
-- **Asset optimization**: Images in `src/assets/` auto-optimized
-- **Caching**: Static assets cached at CDN
-- **Compression**: Gzip/Brotli by default
-
-### Backend
-
-- **Database indexes**: Added for frequent queries
-- **Connection pooling**: Managed by Supabase
-- **Edge locations**: Functions run at edge
-
-### Metrics to Monitor
+### Performance Targets
 
 | Metric | Target |
 |--------|--------|
 | LCP (Largest Contentful Paint) | < 2.5s |
 | FID (First Input Delay) | < 100ms |
 | CLS (Cumulative Layout Shift) | < 0.1 |
-| API Response Time (p95) | < 500ms |
-| Edge Function Duration | < 10s |
+| Event Creation | < 45s |
+| RSVP Completion | < 30s |
+| AI Generation | < 2s |
 
 ---
 
 ## Custom Domain Setup
 
-1. Go to Project Settings → Domains
-2. Click "Connect Domain"
-3. Enter your domain (e.g., `lockstep.app`)
-4. Add DNS records as instructed:
-   - `A` record → Lovable IP
-   - `CNAME` for www → Lovable subdomain
-5. Wait for SSL certificate provisioning
-6. Verify domain is working
+### Vercel
+
+1. Go to Vercel Project Settings → Domains
+2. Add your domain (e.g., `lockstep.app`)
+3. Configure DNS as instructed:
+   - `A` record → Vercel IP
+   - `CNAME` for www → `cname.vercel-dns.com`
+4. SSL certificate auto-provisions
 
 ### DNS Configuration Example
 
 ```
 Type    Name    Value
 A       @       76.76.21.21
-CNAME   www     cname.lovable.app
+CNAME   www     cname.vercel-dns.com
 ```

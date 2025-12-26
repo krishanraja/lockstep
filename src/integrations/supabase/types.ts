@@ -7,13 +7,53 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "14.1"
   }
   public: {
     Tables: {
+      answers: {
+        Row: {
+          id: string
+          guest_id: string
+          question_id: string
+          value: Json
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          guest_id: string
+          question_id: string
+          value: Json
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          guest_id?: string
+          question_id?: string
+          value?: Json
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "answers_guest_id_fkey"
+            columns: ["guest_id"]
+            isOneToOne: false
+            referencedRelation: "guests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "answers_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "questions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       blocks: {
         Row: {
           created_at: string | null
@@ -23,6 +63,8 @@ export type Database = {
           name: string
           order_index: number | null
           start_time: string | null
+          location: string | null
+          attendance_required: boolean | null
         }
         Insert: {
           created_at?: string | null
@@ -32,6 +74,8 @@ export type Database = {
           name: string
           order_index?: number | null
           start_time?: string | null
+          location?: string | null
+          attendance_required?: boolean | null
         }
         Update: {
           created_at?: string | null
@@ -41,6 +85,8 @@ export type Database = {
           name?: string
           order_index?: number | null
           start_time?: string | null
+          location?: string | null
+          attendance_required?: boolean | null
         }
         Relationships: [
           {
@@ -61,6 +107,10 @@ export type Database = {
           message: string | null
           trigger_at: string
           type: string | null
+          name: string | null
+          required_question_ids: string[] | null
+          applicable_block_ids: string[] | null
+          auto_resolve_to: string | null
         }
         Insert: {
           created_at?: string | null
@@ -70,6 +120,10 @@ export type Database = {
           message?: string | null
           trigger_at: string
           type?: string | null
+          name?: string | null
+          required_question_ids?: string[] | null
+          applicable_block_ids?: string[] | null
+          auto_resolve_to?: string | null
         }
         Update: {
           created_at?: string | null
@@ -79,6 +133,10 @@ export type Database = {
           message?: string | null
           trigger_at?: string
           type?: string | null
+          name?: string | null
+          required_question_ids?: string[] | null
+          applicable_block_ids?: string[] | null
+          auto_resolve_to?: string | null
         }
         Relationships: [
           {
@@ -104,6 +162,9 @@ export type Database = {
           timezone: string | null
           title: string
           updated_at: string | null
+          template: string | null
+          place_id: string | null
+          place_data: Json | null
         }
         Insert: {
           created_at?: string | null
@@ -118,6 +179,9 @@ export type Database = {
           timezone?: string | null
           title: string
           updated_at?: string | null
+          template?: string | null
+          place_id?: string | null
+          place_data?: Json | null
         }
         Update: {
           created_at?: string | null
@@ -132,6 +196,9 @@ export type Database = {
           timezone?: string | null
           title?: string
           updated_at?: string | null
+          template?: string | null
+          place_id?: string | null
+          place_data?: Json | null
         }
         Relationships: []
       }
@@ -145,6 +212,7 @@ export type Database = {
           name: string
           phone: string | null
           status: string | null
+          opted_out_at: string | null
         }
         Insert: {
           created_at?: string | null
@@ -155,6 +223,7 @@ export type Database = {
           name: string
           phone?: string | null
           status?: string | null
+          opted_out_at?: string | null
         }
         Update: {
           created_at?: string | null
@@ -165,6 +234,7 @@ export type Database = {
           name?: string
           phone?: string | null
           status?: string | null
+          opted_out_at?: string | null
         }
         Relationships: [
           {
@@ -185,6 +255,11 @@ export type Database = {
           id: string
           sent_at: string | null
           status: string | null
+          message: string | null
+          idempotency_key: string | null
+          external_id: string | null
+          delivered_at: string | null
+          error_message: string | null
         }
         Insert: {
           channel: string
@@ -194,6 +269,11 @@ export type Database = {
           id?: string
           sent_at?: string | null
           status?: string | null
+          message?: string | null
+          idempotency_key?: string | null
+          external_id?: string | null
+          delivered_at?: string | null
+          error_message?: string | null
         }
         Update: {
           channel?: string
@@ -203,6 +283,11 @@ export type Database = {
           id?: string
           sent_at?: string | null
           status?: string | null
+          message?: string | null
+          idempotency_key?: string | null
+          external_id?: string | null
+          delivered_at?: string | null
+          error_message?: string | null
         }
         Relationships: [
           {
@@ -309,6 +394,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      subscriptions: {
+        Row: {
+          id: string
+          user_id: string
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          plan: string | null
+          status: string | null
+          current_period_end: string | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          plan?: string | null
+          status?: string | null
+          current_period_end?: string | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          plan?: string | null
+          status?: string | null
+          current_period_end?: string | null
+          created_at?: string | null
+        }
+        Relationships: []
       }
     }
     Views: {
