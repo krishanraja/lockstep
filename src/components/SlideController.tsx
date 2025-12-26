@@ -1,4 +1,4 @@
-import { useState, useCallback, ReactNode, useEffect } from "react";
+import { useState, useCallback, ReactNode } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSwipe, useKeyboardNavigation } from "@/hooks/use-swipe";
 import { useTransitionFeedback } from "@/hooks/use-transition-feedback";

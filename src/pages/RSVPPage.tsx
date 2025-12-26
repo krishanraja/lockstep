@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Check, Calendar, MapPin, ChevronRight, ChevronLeft } from 'lucide-react';
@@ -66,13 +66,7 @@ const RSVPPage = () => {
   const [responses, setResponses] = useState<BlockRSVP[]>([]);
   const [answers, setAnswers] = useState<QuestionAnswer[]>([]);
 
-  useEffect(() => {
-    if (token) {
-      loadRSVPData();
-    }
-  }, [token]);
-
-  const loadRSVPData = async () => {
+  const loadRSVPData = useCallback(async (magicToken: string, cancelled: { current: boolean }) => {
     setIsLoading(true);
     setError(null);
 
@@ -81,8 +75,10 @@ const RSVPPage = () => {
       const { data: guestData, error: guestError } = await supabase
         .from('guests')
         .select('*')
-        .eq('magic_token', token)
+        .eq('magic_token', magicToken)
         .single();
+
+      if (cancelled.current) return;
 
       if (guestError || !guestData) {
         setError('Invalid or expired invitation link.');
@@ -99,6 +95,8 @@ const RSVPPage = () => {
         .eq('id', guestData.event_id)
         .single();
 
+      if (cancelled.current) return;
+
       if (eventError || !eventData) {
         setError('Event not found.');
         setIsLoading(false);
@@ -114,6 +112,8 @@ const RSVPPage = () => {
         .eq('event_id', guestData.event_id)
         .order('order_index');
 
+      if (cancelled.current) return;
+
       if (blocksData) {
         setBlocks(blocksData);
         // Pre-select all blocks as "in" (positive bias)
@@ -126,6 +126,8 @@ const RSVPPage = () => {
         .select('*')
         .eq('event_id', guestData.event_id)
         .order('order_index');
+
+      if (cancelled.current) return;
 
       if (questionsData) {
         setQuestions(questionsData.map(q => ({
@@ -142,6 +144,8 @@ const RSVPPage = () => {
         .select('*')
         .eq('guest_id', guestData.id);
 
+      if (cancelled.current) return;
+
       if (existingRsvps && existingRsvps.length > 0) {
         setResponses(existingRsvps.map((r) => ({ 
           blockId: r.block_id, 
@@ -154,6 +158,8 @@ const RSVPPage = () => {
         .from('answers')
         .select('*')
         .eq('guest_id', guestData.id);
+
+      if (cancelled.current) return;
 
       if (existingAnswers && existingAnswers.length > 0) {
         setAnswers(existingAnswers.map((a) => ({
@@ -171,11 +177,25 @@ const RSVPPage = () => {
       }
 
     } catch (err) {
+      if (cancelled.current) return;
       setError('Something went wrong. Please try again.');
     } finally {
-      setIsLoading(false);
+      if (!cancelled.current) {
+        setIsLoading(false);
+      }
     }
-  };
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (!token) return;
+    
+    const cancelled = { current: false };
+    loadRSVPData(token, cancelled);
+    
+    return () => {
+      cancelled.current = true;
+    };
+  }, [token, loadRSVPData]);
 
   const handleBlockResponse = (blockId: string, response: RSVPResponse) => {
     setResponses((prev) => 

@@ -19,6 +19,13 @@ export const useAutoPlay = ({
   const resumeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<number>(Date.now());
+  
+  // Use ref to always have access to the latest onAdvance callback
+  // This prevents stale closure issues without restarting timers
+  const onAdvanceRef = useRef(onAdvance);
+  useEffect(() => {
+    onAdvanceRef.current = onAdvance;
+  }, [onAdvance]);
 
   const clearAllTimers = useCallback(() => {
     if (intervalRef.current) {
@@ -47,11 +54,11 @@ export const useAutoPlay = ({
       setProgress(newProgress);
     }, 50);
 
-    // Auto advance
+    // Auto advance - use ref to get latest callback
     intervalRef.current = setTimeout(() => {
-      onAdvance();
+      onAdvanceRef.current();
     }, intervalMs);
-  }, [intervalMs, onAdvance, clearAllTimers]);
+  }, [intervalMs, clearAllTimers]);
 
   const pause = useCallback(() => {
     setIsPaused(true);

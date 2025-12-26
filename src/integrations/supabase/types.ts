@@ -402,6 +402,8 @@ export type Database = {
           stripe_customer_id: string | null
           stripe_subscription_id: string | null
           plan: string | null
+          tier: string | null
+          features: Json | null
           status: string | null
           current_period_end: string | null
           created_at: string | null
@@ -412,6 +414,8 @@ export type Database = {
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
           plan?: string | null
+          tier?: string | null
+          features?: Json | null
           status?: string | null
           current_period_end?: string | null
           created_at?: string | null
@@ -422,8 +426,90 @@ export type Database = {
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
           plan?: string | null
+          tier?: string | null
+          features?: Json | null
           status?: string | null
           current_period_end?: string | null
+          created_at?: string | null
+        }
+        Relationships: []
+      }
+      event_purchases: {
+        Row: {
+          id: string
+          event_id: string | null
+          user_id: string
+          stripe_payment_intent_id: string | null
+          stripe_checkout_session_id: string | null
+          tier: string
+          amount_paid: number
+          addons: Json | null
+          status: string | null
+          purchased_at: string | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          event_id?: string | null
+          user_id: string
+          stripe_payment_intent_id?: string | null
+          stripe_checkout_session_id?: string | null
+          tier: string
+          amount_paid: number
+          addons?: Json | null
+          status?: string | null
+          purchased_at?: string | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          event_id?: string | null
+          user_id?: string
+          stripe_payment_intent_id?: string | null
+          stripe_checkout_session_id?: string | null
+          tier?: string
+          amount_paid?: number
+          addons?: Json | null
+          status?: string | null
+          purchased_at?: string | null
+          created_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_purchases_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      stripe_products: {
+        Row: {
+          id: string
+          tier: string
+          price_cents: number
+          stripe_price_id: string | null
+          is_subscription: boolean | null
+          features: Json | null
+          created_at: string | null
+        }
+        Insert: {
+          id: string
+          tier: string
+          price_cents: number
+          stripe_price_id?: string | null
+          is_subscription?: boolean | null
+          features?: Json | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          tier?: string
+          price_cents?: number
+          stripe_price_id?: string | null
+          is_subscription?: boolean | null
+          features?: Json | null
           created_at?: string | null
         }
         Relationships: []

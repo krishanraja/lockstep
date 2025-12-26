@@ -33,18 +33,28 @@ export function PlacesAutocomplete({
   const [googleAvailable, setGoogleAvailable] = useState(false);
 
   useEffect(() => {
+    let isMounted = true;
+    
     const init = async () => {
       try {
         await loadGoogleMapsAPI();
-        setGoogleAvailable(isGoogleMapsAvailable());
+        if (isMounted) {
+          setGoogleAvailable(isGoogleMapsAvailable());
+        }
       } catch (err) {
         console.warn('Google Maps API not available:', err);
       } finally {
-        setIsLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     };
     
     init();
+    
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   useEffect(() => {

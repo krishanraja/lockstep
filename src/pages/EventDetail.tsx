@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useEffect, useState, useCallback } from 'react';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
   ChevronLeft, 
@@ -10,11 +10,21 @@ import {
   Send,
   Share2,
   Download,
-  MoreHorizontal
+  MoreHorizontal,
+  Crown
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
+import { UpgradeModal } from '@/components/UpgradeModal';
+import { UsageIndicator } from '@/components/UsageIndicator';
+import { 
+  canSendNudge, 
+  getEventUsage, 
+  incrementNudgeCount,
+  PricingTier,
+  EventUsage
+} from '@/services/subscription';
 
 interface Event {
   id: string;
@@ -48,6 +58,7 @@ interface RSVPCount {
 const EventDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
   
   const [event, setEvent] = useState<Event | null>(null);
@@ -55,14 +66,12 @@ const EventDetail = () => {
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [rsvpCounts, setRsvpCounts] = useState<RSVPCount[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSendingNudge, setIsSendingNudge] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [eventUsage, setEventUsage] = useState<EventUsage | null>(null);
+  const [user, setUser] = useState<any>(null);
 
-  useEffect(() => {
-    if (id) {
-      loadEventData();
-    }
-  }, [id]);
-
-  const loadEventData = async () => {
+  const loadEventData = useCallback(async (eventId: string, cancelled: { current: boolean }) => {
     setIsLoading(true);
 
     try {
@@ -70,9 +79,10 @@ const EventDetail = () => {
       const { data: eventData, error: eventError } = await supabase
         .from('events')
         .select('*')
-        .eq('id', id)
+        .eq('id', eventId)
         .single();
 
+      if (cancelled.current) return;
       if (eventError) throw eventError;
       setEvent(eventData);
 
@@ -80,16 +90,19 @@ const EventDetail = () => {
       const { data: guestsData } = await supabase
         .from('guests')
         .select('*')
-        .eq('event_id', id);
+        .eq('event_id', eventId);
       
+      if (cancelled.current) return;
       if (guestsData) setGuests(guestsData);
 
       // Load blocks
       const { data: blocksData } = await supabase
         .from('blocks')
         .select('*')
-        .eq('event_id', id)
+        .eq('event_id', eventId)
         .order('order_index');
+
+      if (cancelled.current) return;
 
       if (blocksData) {
         setBlocks(blocksData);
@@ -97,6 +110,8 @@ const EventDetail = () => {
         // Load RSVP counts per block
         const counts: RSVPCount[] = [];
         for (const block of blocksData) {
+          if (cancelled.current) return;
+          
           const { data: rsvps } = await supabase
             .from('rsvps')
             .select('response')
@@ -110,16 +125,118 @@ const EventDetail = () => {
             outCount: rsvps?.filter(r => r.response === 'out').length || 0,
           });
         }
+        
+        if (cancelled.current) return;
         setRsvpCounts(counts);
       }
     } catch (err: any) {
+      if (cancelled.current) return;
       toast({
         title: 'Error loading event',
         description: err.message,
         variant: 'destructive',
       });
     } finally {
-      setIsLoading(false);
+      if (!cancelled.current) {
+        setIsLoading(false);
+      }
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    if (!id) return;
+    
+    const cancelled = { current: false };
+    
+    const init = async () => {
+      // Get user
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (cancelled.current) return;
+      setUser(authUser);
+      
+      // Check for upgrade success message
+      if (searchParams.get('upgraded') === 'true') {
+        toast({
+          title: 'Upgrade successful!',
+          description: 'Your event has been upgraded. Enjoy your new features!',
+        });
+        // Clean up URL
+        window.history.replaceState({}, '', `/events/${id}`);
+      }
+      
+      // Load event data
+      await loadEventData(id, cancelled);
+      
+      // Load usage data
+      if (authUser) {
+        const usage = await getEventUsage(id, authUser.id);
+        if (!cancelled.current) {
+          setEventUsage(usage);
+        }
+      }
+    };
+    
+    init();
+    
+    return () => {
+      cancelled.current = true;
+    };
+  }, [id, loadEventData, searchParams, toast]);
+
+  const handleSendNudge = async () => {
+    if (!id || !user) return;
+    
+    // Check nudge limit
+    const limitCheck = await canSendNudge(id, user.id);
+    
+    if (!limitCheck.allowed) {
+      // Show upgrade modal
+      setShowUpgradeModal(true);
+      return;
+    }
+    
+    setIsSendingNudge(true);
+    
+    try {
+      // Send nudges to pending guests
+      let successCount = 0;
+      let failCount = 0;
+      
+      for (const guest of pendingGuests) {
+        const { error } = await supabase.functions.invoke('send-nudge', {
+          body: {
+            guestId: guest.id,
+            eventId: id,
+            channel: 'sms',
+            message: `Hey ${guest.name}! Just a reminder to RSVP for ${event?.title}. We need your response to finalize plans.`,
+          },
+        });
+        
+        if (error) {
+          failCount++;
+        } else {
+          successCount++;
+          // Increment nudge count
+          await incrementNudgeCount(id);
+        }
+      }
+      
+      // Update usage after sending
+      const newUsage = await getEventUsage(id, user.id);
+      setEventUsage(newUsage);
+      
+      toast({
+        title: 'Nudges sent!',
+        description: `Sent ${successCount} nudge${successCount !== 1 ? 's' : ''}${failCount > 0 ? `, ${failCount} failed` : ''}.`,
+      });
+    } catch (err) {
+      toast({
+        title: 'Error sending nudges',
+        description: 'Something went wrong. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSendingNudge(false);
     }
   };
 
@@ -228,13 +345,40 @@ const EventDetail = () => {
               )}
             </div>
 
+            {/* Nudge remaining indicator */}
+            {eventUsage && eventUsage.nudgesLimit !== -1 && (
+              <div className="mb-3">
+                <UsageIndicator
+                  type="nudges"
+                  used={eventUsage.nudgesUsed}
+                  limit={eventUsage.nudgesLimit}
+                  tier={eventUsage.tier}
+                  showUpgradeHint={true}
+                  onClick={eventUsage.nudgesUsed >= eventUsage.nudgesLimit ? () => setShowUpgradeModal(true) : undefined}
+                />
+              </div>
+            )}
+
             <button
-              onClick={() => toast({ title: 'Nudge sending coming soon!' })}
+              onClick={handleSendNudge}
+              disabled={isSendingNudge}
               className="w-full py-3 rounded-xl bg-maybe text-background font-medium
-                flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
+                flex items-center justify-center gap-2 hover:opacity-90 transition-opacity
+                disabled:opacity-50"
             >
-              <Send className="w-4 h-4" />
-              Send Nudge
+              {isSendingNudge ? (
+                <div className="w-4 h-4 border-2 border-background border-t-transparent rounded-full animate-spin" />
+              ) : eventUsage && eventUsage.nudgesLimit !== -1 && eventUsage.nudgesUsed >= eventUsage.nudgesLimit ? (
+                <>
+                  <Crown className="w-4 h-4" />
+                  Upgrade to Send
+                </>
+              ) : (
+                <>
+                  <Send className="w-4 h-4" />
+                  Send Nudge
+                </>
+              )}
             </button>
           </motion.div>
         )}
@@ -310,6 +454,26 @@ const EventDetail = () => {
           </div>
         </div>
       </main>
+
+      {/* Upgrade Modal */}
+      {eventUsage && (
+        <UpgradeModal
+          isOpen={showUpgradeModal}
+          onClose={() => setShowUpgradeModal(false)}
+          eventId={id!}
+          eventType={event?.status || undefined}
+          limitType="nudges"
+          currentUsage={eventUsage.nudgesUsed}
+          currentLimit={eventUsage.nudgesLimit}
+          onUpgradeSuccess={() => {
+            setShowUpgradeModal(false);
+            // Refresh usage data
+            if (user) {
+              getEventUsage(id!, user.id).then(setEventUsage);
+            }
+          }}
+        />
+      )}
     </div>
   );
 };

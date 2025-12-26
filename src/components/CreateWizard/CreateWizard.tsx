@@ -44,10 +44,22 @@ export function CreateWizard() {
   
   // Track if we've already attempted auto-creation (to prevent loops)
   const hasAttemptedAutoCreate = useRef(false);
+  // Track mounted state to prevent state updates after unmount
+  const isMountedRef = useRef(true);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   // On mount, check for saved wizard state and restore it
   // If returning from auth with pending state, auto-create the event
   useEffect(() => {
+    let timeoutId: NodeJS.Timeout | null = null;
+    
     const checkAndRestoreState = async () => {
       // Check if there's saved state to restore
       const savedState = loadWizardState();
@@ -62,16 +74,27 @@ export function CreateWizard() {
         hasAttemptedAutoCreate.current = true;
         
         const { data: { user } } = await supabase.auth.getUser();
+        
+        if (!isMountedRef.current) return;
+        
         if (user) {
           // Small delay to let state settle, then trigger event creation
-          setTimeout(() => {
-            handleCreateEventWithState(savedState);
+          timeoutId = setTimeout(() => {
+            if (isMountedRef.current) {
+              handleCreateEventWithState(savedState);
+            }
           }, 100);
         }
       }
     };
 
     checkAndRestoreState();
+    
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
   }, [restoreState]);
 
   // Venue types that should use "at" instead of "in"

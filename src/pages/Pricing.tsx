@@ -1,0 +1,380 @@
+import { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { Check, Sparkles, Users, MessageSquare, Zap, BarChart3, ArrowRight } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { supabase } from '@/integrations/supabase/client';
+import { 
+  PricingTier, 
+  TIER_LIMITS, 
+  TIER_PRICING, 
+  createCheckoutSession,
+  getSubscription,
+} from '@/services/subscription';
+
+interface PricingCardProps {
+  tier: PricingTier;
+  isPopular?: boolean;
+  isCurrentPlan?: boolean;
+  eventId?: string;
+  onSelect: (tier: PricingTier) => void;
+  isLoading?: boolean;
+}
+
+function PricingCard({ 
+  tier, 
+  isPopular, 
+  isCurrentPlan,
+  eventId,
+  onSelect,
+  isLoading,
+}: PricingCardProps) {
+  const pricing = TIER_PRICING[tier];
+  const limits = TIER_LIMITS[tier];
+
+  const features = [
+    {
+      text: limits.guests === -1 ? 'Unlimited guests' : `Up to ${limits.guests} guests`,
+      icon: Users,
+      included: true,
+    },
+    {
+      text: limits.nudges === -1 ? 'Unlimited nudges' : `${limits.nudges} nudges`,
+      icon: MessageSquare,
+      included: true,
+    },
+    {
+      text: 'AI-powered summaries',
+      icon: Sparkles,
+      included: limits.aiSummaries,
+    },
+    {
+      text: 'WhatsApp messaging',
+      icon: MessageSquare,
+      included: limits.whatsapp,
+    },
+    {
+      text: 'CSV export',
+      icon: BarChart3,
+      included: limits.export,
+    },
+    {
+      text: 'Priority AI responses',
+      icon: Zap,
+      included: limits.priorityAi,
+    },
+    {
+      text: 'Analytics dashboard',
+      icon: BarChart3,
+      included: limits.analytics,
+    },
+    {
+      text: 'Team access',
+      icon: Users,
+      included: limits.teamAccess,
+    },
+  ].filter(f => f.included || tier !== 'free');
+
+  const priceDisplay = tier === 'free' 
+    ? '$0' 
+    : tier === 'annual_pro' 
+      ? `$${pricing.price}` 
+      : `$${pricing.price}`;
+
+  const priceSubtext = tier === 'annual_pro' 
+    ? '/year' 
+    : tier === 'free' 
+      ? 'forever' 
+      : '/event';
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4 }}
+      className={`
+        relative rounded-2xl p-6 flex flex-col
+        ${isPopular 
+          ? 'bg-gradient-to-b from-primary/20 to-card border-2 border-primary/50' 
+          : 'bg-card border border-border/50'
+        }
+        ${isCurrentPlan ? 'ring-2 ring-confirmed/50' : ''}
+      `}
+    >
+      {isPopular && (
+        <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+          <span className="bg-primary text-primary-foreground text-xs font-semibold px-3 py-1 rounded-full">
+            Most Popular
+          </span>
+        </div>
+      )}
+
+      {isCurrentPlan && (
+        <div className="absolute -top-3 right-4">
+          <span className="bg-confirmed/20 text-confirmed text-xs font-semibold px-3 py-1 rounded-full border border-confirmed/30">
+            Current Plan
+          </span>
+        </div>
+      )}
+
+      <div className="mb-4">
+        <h3 className="text-xl font-bold text-foreground mb-1">
+          {pricing.label}
+        </h3>
+        <p className="text-sm text-muted-foreground">
+          {pricing.description}
+        </p>
+      </div>
+
+      <div className="mb-6">
+        <span className="text-4xl font-bold text-foreground">{priceDisplay}</span>
+        <span className="text-muted-foreground ml-1">{priceSubtext}</span>
+      </div>
+
+      <ul className="space-y-3 mb-6 flex-grow">
+        {features.slice(0, 6).map((feature, index) => (
+          <li 
+            key={index} 
+            className={`flex items-center gap-2 text-sm ${
+              feature.included ? 'text-foreground' : 'text-muted-foreground/50'
+            }`}
+          >
+            <Check className={`w-4 h-4 flex-shrink-0 ${
+              feature.included ? 'text-confirmed' : 'text-muted-foreground/30'
+            }`} />
+            <span>{feature.text}</span>
+          </li>
+        ))}
+      </ul>
+
+      <Button
+        onClick={() => onSelect(tier)}
+        disabled={isLoading || isCurrentPlan}
+        className={`w-full ${
+          isPopular 
+            ? 'bg-primary hover:bg-primary/90' 
+            : tier === 'free'
+              ? 'bg-secondary hover:bg-secondary/80 text-foreground'
+              : 'bg-button-bg text-button-text hover:bg-button-bg/90'
+        }`}
+      >
+        {isCurrentPlan ? 'Current Plan' : tier === 'free' ? 'Get Started' : 'Upgrade'}
+        {!isCurrentPlan && tier !== 'free' && <ArrowRight className="w-4 h-4 ml-2" />}
+      </Button>
+    </motion.div>
+  );
+}
+
+const Pricing = () => {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const eventId = searchParams.get('event') || undefined;
+  
+  const [user, setUser] = useState<any>(null);
+  const [currentTier, setCurrentTier] = useState<PricingTier>('free');
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadingTier, setLoadingTier] = useState<PricingTier | null>(null);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+
+      if (user) {
+        const subscription = await getSubscription(user.id);
+        setCurrentTier(subscription.tier);
+      }
+    };
+
+    checkAuth();
+  }, []);
+
+  const handleSelectTier = async (tier: PricingTier) => {
+    if (tier === 'free') {
+      navigate('/dashboard');
+      return;
+    }
+
+    if (!user) {
+      // Redirect to auth with return URL
+      const returnUrl = eventId 
+        ? `/pricing?event=${eventId}&tier=${tier}`
+        : `/pricing?tier=${tier}`;
+      navigate(`/auth?redirect=${encodeURIComponent(returnUrl)}`);
+      return;
+    }
+
+    setIsLoading(true);
+    setLoadingTier(tier);
+
+    const result = await createCheckoutSession({
+      tier,
+      eventId,
+      successUrl: eventId 
+        ? `${window.location.origin}/events/${eventId}?upgraded=true`
+        : `${window.location.origin}/dashboard?upgraded=true`,
+      cancelUrl: window.location.href,
+    });
+
+    if ('url' in result && result.url) {
+      window.location.href = result.url;
+    } else {
+      console.error('Checkout error:', result.error);
+      setIsLoading(false);
+      setLoadingTier(null);
+    }
+  };
+
+  const tiers: PricingTier[] = ['free', 'pro', 'wedding', 'business'];
+
+  return (
+    <div className="min-h-screen bg-background overflow-auto">
+      {/* Background effects */}
+      <div className="fixed inset-0 pointer-events-none">
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
+      </div>
+
+      <div className="relative z-10 container max-w-6xl mx-auto px-4 py-12">
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="text-center mb-12"
+        >
+          <h1 className="text-4xl md:text-5xl font-display font-bold text-foreground mb-4">
+            Simple, transparent pricing
+          </h1>
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+            Start free, upgrade when you need more. No subscriptions required for single events.
+          </p>
+        </motion.div>
+
+        {/* Pricing grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-12">
+          {tiers.map((tier, index) => (
+            <motion.div
+              key={tier}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: index * 0.1 }}
+            >
+              <PricingCard
+                tier={tier}
+                isPopular={tier === 'pro'}
+                isCurrentPlan={tier === currentTier}
+                eventId={eventId}
+                onSelect={handleSelectTier}
+                isLoading={isLoading && loadingTier === tier}
+              />
+            </motion.div>
+          ))}
+        </div>
+
+        {/* Annual plan banner */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.5 }}
+          className="relative rounded-2xl p-6 bg-gradient-to-r from-primary/20 via-card to-primary/20 border border-primary/30 mb-12"
+        >
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            <div>
+              <h3 className="text-xl font-bold text-foreground mb-1">
+                Plan multiple events?
+              </h3>
+              <p className="text-muted-foreground">
+                Get Annual Pro for ${TIER_PRICING.annual_pro.price}/year — unlimited events with Pro features.
+              </p>
+            </div>
+            <Button
+              onClick={() => handleSelectTier('annual_pro')}
+              disabled={isLoading}
+              className="bg-primary hover:bg-primary/90 whitespace-nowrap"
+            >
+              Get Annual Pro
+              <ArrowRight className="w-4 h-4 ml-2" />
+            </Button>
+          </div>
+        </motion.div>
+
+        {/* FAQ Section */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.5, delay: 0.6 }}
+          className="max-w-3xl mx-auto"
+        >
+          <h2 className="text-2xl font-bold text-foreground text-center mb-8">
+            Frequently Asked Questions
+          </h2>
+
+          <div className="space-y-4">
+            <FaqItem
+              question="Can I try Lockstep for free?"
+              answer="Yes! The free tier lets you create unlimited events with up to 15 guests each and 3 nudges per event. Perfect for small gatherings."
+            />
+            <FaqItem
+              question="What happens when I upgrade a single event?"
+              answer="When you purchase a tier for an event, those features apply only to that specific event. You pay once per event, no subscription needed."
+            />
+            <FaqItem
+              question="Which tier should I choose for my wedding?"
+              answer="We recommend the Wedding tier ($49) for wedding weekends. It includes 150 guests, unlimited nudges, and CSV export for vendor coordination."
+            />
+            <FaqItem
+              question="What about corporate events?"
+              answer="The Business tier ($99) is designed for corporate offsites and retreats with team access, analytics, and support for up to 200 guests."
+            />
+            <FaqItem
+              question="Can I get a refund?"
+              answer="Yes, we offer full refunds within 7 days of purchase if you haven't sent any nudges to your guests."
+            />
+          </div>
+        </motion.div>
+
+        {/* Back to dashboard link */}
+        <div className="text-center mt-12">
+          <button
+            onClick={() => navigate(user ? '/dashboard' : '/')}
+            className="text-muted-foreground hover:text-foreground transition-colors"
+          >
+            {user ? '← Back to Dashboard' : '← Back to Home'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+function FaqItem({ question, answer }: { question: string; answer: string }) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div className="border border-border/50 rounded-xl overflow-hidden">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full px-6 py-4 text-left flex items-center justify-between hover:bg-card/50 transition-colors"
+      >
+        <span className="font-medium text-foreground">{question}</span>
+        <span className={`text-muted-foreground transition-transform ${isOpen ? 'rotate-45' : ''}`}>
+          +
+        </span>
+      </button>
+      {isOpen && (
+        <motion.div
+          initial={{ height: 0, opacity: 0 }}
+          animate={{ height: 'auto', opacity: 1 }}
+          transition={{ duration: 0.2 }}
+          className="px-6 pb-4"
+        >
+          <p className="text-muted-foreground">{answer}</p>
+        </motion.div>
+      )}
+    </div>
+  );
+}
+
+export default Pricing;
+

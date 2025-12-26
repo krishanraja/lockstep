@@ -1,10 +1,12 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState, useRef, useCallback } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Calendar, Users, ChevronRight, Sparkles, RefreshCw, LogOut } from 'lucide-react';
+import { Plus, Calendar, Users, ChevronRight, Sparkles, RefreshCw, LogOut, Crown } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { format, differenceInDays } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
+import { UsageSummary } from '@/components/UsageIndicator';
+import { getSubscription, getEventUsage, PricingTier, TIER_LIMITS } from '@/services/subscription';
 
 interface Event {
   id: string;
@@ -30,57 +32,46 @@ interface AISummary {
   isLoading: boolean;
 }
 
+interface UserSubscription {
+  tier: PricingTier;
+  isAnnual: boolean;
+}
+
 const Dashboard = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const [events, setEvents] = useState<Event[]>([]);
   const [eventStats, setEventStats] = useState<Map<string, EventStats>>(new Map());
   const [aiSummaries, setAiSummaries] = useState<Map<string, AISummary>>(new Map());
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
+  const [subscription, setSubscription] = useState<UserSubscription>({ tier: 'free', isAnnual: false });
+  const [totalUsage, setTotalUsage] = useState({ guests: 0, nudges: 0 });
+  
+  // Track mounted state to prevent state updates after unmount
+  const isMountedRef = useRef(true);
+  const pendingTimeoutsRef = useRef<Set<NodeJS.Timeout>>(new Set());
 
   useEffect(() => {
-    const checkAuth = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        navigate('/auth');
-        return;
-      }
-      setUser(user);
-      fetchEvents(user.id);
-    };
+    isMountedRef.current = true;
     
-    checkAuth();
-  }, [navigate]);
+    return () => {
+      isMountedRef.current = false;
+      // Clear all pending timeouts on unmount
+      pendingTimeoutsRef.current.forEach(timeout => clearTimeout(timeout));
+      pendingTimeoutsRef.current.clear();
+    };
+  }, []);
 
-  const fetchEvents = async (userId: string) => {
-    setIsLoading(true);
-    const { data, error } = await supabase
-      .from('events')
-      .select('*')
-      .eq('organiser_id', userId)
-      .order('created_at', { ascending: false });
-
-    if (!error && data) {
-      setEvents(data);
-      // Fetch stats for each event
-      for (const event of data) {
-        fetchEventStats(event.id);
-        // Generate AI summary for active events
-        if (event.status === 'active') {
-          generateAISummary(event);
-        }
-      }
-    }
-    setIsLoading(false);
-  };
-
-  const fetchEventStats = async (eventId: string) => {
+  const fetchEventStats = useCallback(async (eventId: string) => {
     // Get guests count
     const { data: guests } = await supabase
       .from('guests')
       .select('id, status')
       .eq('event_id', eventId);
+
+    if (!isMountedRef.current) return;
 
     const totalGuests = guests?.length || 0;
     const respondedCount = guests?.filter(g => g.status === 'responded').length || 0;
@@ -93,6 +84,8 @@ const Dashboard = () => {
       .in('guest_id', guests?.map(g => g.id) || [])
       .eq('response', 'in');
 
+    if (!isMountedRef.current) return;
+
     const inCount = new Set(rsvps?.map(r => r.guest_id)).size;
 
     setEventStats(prev => new Map(prev).set(eventId, {
@@ -102,15 +95,25 @@ const Dashboard = () => {
       pendingCount,
       inCount,
     }));
-  };
+    
+    return { eventId, totalGuests, respondedCount, pendingCount, inCount };
+  }, []);
 
-  const generateAISummary = async (event: Event) => {
-    const stats = eventStats.get(event.id);
-    if (!stats) {
-      // Wait for stats to load
-      setTimeout(() => generateAISummary(event), 500);
+  const generateAISummary = useCallback(async (event: Event, stats: EventStats | undefined, retryCount = 0) => {
+    if (!isMountedRef.current) return;
+    
+    if (!stats && retryCount < 5) {
+      // Wait for stats to load with retry limit
+      const timeout = setTimeout(() => {
+        if (isMountedRef.current) {
+          generateAISummary(event, eventStats.get(event.id), retryCount + 1);
+        }
+      }, 500);
+      pendingTimeoutsRef.current.add(timeout);
       return;
     }
+    
+    if (!stats) return; // Give up after max retries
 
     setAiSummaries(prev => new Map(prev).set(event.id, {
       eventId: event.id,
@@ -135,6 +138,8 @@ const Dashboard = () => {
         },
       });
 
+      if (!isMountedRef.current) return;
+
       if (!error && data?.summary) {
         setAiSummaries(prev => new Map(prev).set(event.id, {
           eventId: event.id,
@@ -150,13 +155,93 @@ const Dashboard = () => {
         }));
       }
     } catch (err) {
+      if (!isMountedRef.current) return;
+      
       setAiSummaries(prev => new Map(prev).set(event.id, {
         eventId: event.id,
         summary: `${stats?.respondedCount || 0} of ${stats?.totalGuests || 0} have responded.`,
         isLoading: false,
       }));
     }
-  };
+  }, [eventStats]);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!isMountedRef.current) return;
+      
+      if (!user) {
+        navigate('/auth');
+        return;
+      }
+      setUser(user);
+      
+      // Check for upgrade success message
+      if (searchParams.get('upgraded') === 'true') {
+        toast({
+          title: 'Upgrade successful!',
+          description: 'Your plan has been upgraded. Enjoy your new features!',
+        });
+        // Clean up URL
+        window.history.replaceState({}, '', '/dashboard');
+      }
+      
+      // Fetch user subscription
+      const sub = await getSubscription(user.id);
+      if (isMountedRef.current) {
+        setSubscription({ tier: sub.tier, isAnnual: sub.isAnnual });
+      }
+      
+      // Fetch events
+      setIsLoading(true);
+      const { data, error } = await supabase
+        .from('events')
+        .select('*')
+        .eq('organiser_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (!isMountedRef.current) return;
+
+      if (!error && data) {
+        setEvents(data);
+        
+        // Calculate total usage across all events
+        let totalGuests = 0;
+        let totalNudges = 0;
+        
+        // Fetch stats for each event and then generate summaries
+        for (const event of data) {
+          const stats = await fetchEventStats(event.id);
+          if (stats) {
+            totalGuests += stats.totalGuests;
+          }
+          
+          // Get nudge count for this event
+          const { count: nudgeCount } = await supabase
+            .from('nudges')
+            .select('*', { count: 'exact', head: true })
+            .eq('checkpoint_id', event.id);
+          totalNudges += nudgeCount || 0;
+          
+          // Generate AI summary for active events
+          if (event.status === 'active' && stats) {
+            generateAISummary(event, stats);
+          }
+        }
+        
+        if (isMountedRef.current) {
+          setTotalUsage({ guests: totalGuests, nudges: totalNudges });
+        }
+      }
+      
+      if (isMountedRef.current) {
+        setIsLoading(false);
+      }
+    };
+    
+    checkAuth();
+  }, [navigate, fetchEventStats, generateAISummary, searchParams, toast]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -188,9 +273,25 @@ const Dashboard = () => {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-xl font-display font-bold text-foreground">Your Events</h1>
-            <p className="text-sm text-muted-foreground">Manage and track your gatherings</p>
+            <div className="flex items-center gap-2 mt-1">
+              <p className="text-sm text-muted-foreground">Manage and track your gatherings</p>
+              {subscription.tier !== 'free' && (
+                <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full flex items-center gap-1">
+                  <Crown className="w-3 h-3" />
+                  {subscription.tier === 'annual_pro' ? 'Annual Pro' : subscription.tier}
+                </span>
+              )}
+            </div>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => navigate('/pricing')}
+              className="p-2 rounded-full text-muted-foreground hover:text-primary
+                hover:bg-primary/10 transition-colors"
+              title="View plans"
+            >
+              <Crown className="w-5 h-5" />
+            </button>
             <button
               onClick={handleSignOut}
               className="p-2 rounded-full text-muted-foreground hover:text-foreground
@@ -240,6 +341,24 @@ const Dashboard = () => {
           </motion.div>
         ) : (
           <div className="space-y-4">
+            {/* Usage Summary for Free Tier */}
+            {subscription.tier === 'free' && events.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="rounded-2xl bg-card border border-border/50 p-4"
+              >
+                <UsageSummary
+                  guestsUsed={totalUsage.guests}
+                  guestsLimit={TIER_LIMITS.free.guests * events.length}
+                  nudgesUsed={totalUsage.nudges}
+                  nudgesLimit={TIER_LIMITS.free.nudges * events.length}
+                  tier={subscription.tier}
+                  onUpgradeClick={() => navigate('/pricing')}
+                />
+              </motion.div>
+            )}
+            
             {events.map((event, index) => {
               const stats = eventStats.get(event.id);
               const aiSummary = aiSummaries.get(event.id);
