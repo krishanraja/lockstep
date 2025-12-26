@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { Link } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 import { RotatingText } from "@/components/animations/KineticText";
 import { Reveal, MorphingBlob } from "@/components/animations/Reveal";
@@ -28,13 +29,21 @@ const Hero = () => {
         }} 
       />
 
-      {/* Logo */}
+      {/* Header with logo and sign-in */}
       <Reveal delay={0}>
-        <div className="relative z-10 flex items-center gap-3 mb-4 md:mb-6">
-          <div className="w-8 h-8 md:w-10 md:h-10 rounded-lg bg-[#F5F7FA] flex items-center justify-center">
-            <img src={lockstepIcon} alt="" className="w-5 h-5 md:w-6 md:h-6" />
+        <div className="relative z-10 flex items-center justify-between mb-4 md:mb-6">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 md:w-10 md:h-10 rounded-lg bg-[#F5F7FA] flex items-center justify-center">
+              <img src={lockstepIcon} alt="" className="w-5 h-5 md:w-6 md:h-6" />
+            </div>
+            <img src={lockstepLogoLight} alt="Lockstep" className="h-5 md:h-6" />
           </div>
-          <img src={lockstepLogoLight} alt="Lockstep" className="h-5 md:h-6" />
+          <Link 
+            to="/auth" 
+            className="text-sm text-primary hover:text-primary/80 transition-colors"
+          >
+            Sign in
+          </Link>
         </div>
       </Reveal>
 
