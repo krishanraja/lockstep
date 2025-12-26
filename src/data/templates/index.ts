@@ -13,6 +13,17 @@ import type { EventTemplate, EventTemplateId } from './types';
 // Export all types
 export * from './types';
 
+// Helper for possessive names (e.g., "Charles'" vs "John's")
+export function makePossessive(name: string): string {
+  const trimmed = name.trim();
+  if (!trimmed) return '';
+  // Names ending in 's' get just an apostrophe
+  if (trimmed.toLowerCase().endsWith('s')) {
+    return `${trimmed}'`;
+  }
+  return `${trimmed}'s`;
+}
+
 // All templates in display order
 export const templates: EventTemplate[] = [
   bucksTemplate,
@@ -111,5 +122,6 @@ export function generateBlocks(
     };
   });
 }
+
 
 

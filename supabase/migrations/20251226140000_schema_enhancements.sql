@@ -116,3 +116,4 @@ CREATE TRIGGER update_answers_updated_at
 ALTER PUBLICATION supabase_realtime ADD TABLE public.answers;
 
 
+

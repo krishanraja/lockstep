@@ -5,10 +5,10 @@ export const reunionTemplate: EventTemplate = {
   icon: '👨‍👩‍👧‍👦',
   label: 'Reunion',
   subtitle: 'Bring everyone together',
-  namePattern: (host) => `${host} Family Reunion`,
+  namePattern: (host) => `${host.trim()} Family Reunion`,
   descriptionPrompt: `Generate a brief, warm description for a family or friends reunion.
-Style: Nostalgic, warm, inclusive. One short paragraph. No emojis.
-Tone: Like reconnecting with people who matter.`,
+Style: Nostalgic, warm, inclusive. One short paragraph. No emojis.`,
+  tone: 'nostalgic and warm - like reconnecting with the people who matter most',
   defaultDurationDays: 2,
   blocks: [
     { name: 'Arrival & Catch-up', defaultDuration: 3, attendanceRequired: false },
@@ -48,5 +48,6 @@ Tone: Like reconnecting with people who matter.`,
     'Country retreat',
   ],
 };
+
 
 

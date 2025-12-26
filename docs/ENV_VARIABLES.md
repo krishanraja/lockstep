@@ -45,3 +45,4 @@ These are configured in Supabase Dashboard > Edge Functions > Secrets:
 4. Add the key to Vercel as `VITE_GOOGLE_PLACES_API_KEY`
 
 
+

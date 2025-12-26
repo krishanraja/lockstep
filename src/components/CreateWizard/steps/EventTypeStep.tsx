@@ -38,7 +38,7 @@ export function EventTypeStep({ onSelect }: EventTypeStepProps) {
                 ease: [0.4, 0, 0.2, 1]
               }}
               onClick={() => onSelect(template)}
-              className={`
+              className="
                 relative py-5 px-3 rounded-2xl
                 bg-card border border-border/50
                 hover:border-primary/50 hover:bg-card/80
@@ -46,8 +46,7 @@ export function EventTypeStep({ onSelect }: EventTypeStepProps) {
                 transition-all duration-200
                 flex flex-col items-center justify-center
                 group
-                ${template.id === 'custom' ? 'col-span-2 py-4' : ''}
-              `}
+              "
             >
               {/* Icon */}
               <span className="text-2xl mb-1.5 group-hover:scale-110 transition-transform duration-200">

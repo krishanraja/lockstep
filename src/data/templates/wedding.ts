@@ -1,14 +1,15 @@
 import type { EventTemplate } from './types';
+import { makePossessive } from './index';
 
 export const weddingTemplate: EventTemplate = {
   id: 'wedding',
   icon: '💒',
   label: 'Wedding',
   subtitle: 'Gather your loved ones',
-  namePattern: (host) => `${host}'s Wedding`,
+  namePattern: (host) => `${makePossessive(host)} Wedding`,
   descriptionPrompt: `Generate a brief, warm description for a wedding celebration.
-Style: Elegant, heartfelt, inclusive. One short paragraph. No emojis.
-Tone: Like an intimate celebration of love.`,
+Style: Elegant, heartfelt, inclusive. One short paragraph. No emojis.`,
+  tone: 'warm, heartfelt, and celebratory - like an intimate celebration of love',
   defaultDurationDays: 2,
   blocks: [
     { name: 'Ceremony', defaultDuration: 2, attendanceRequired: true },
@@ -56,5 +57,6 @@ Tone: Like an intimate celebration of love.`,
     'Provence, France',
   ],
 };
+
 
 

@@ -1,14 +1,15 @@
 import type { EventTemplate } from './types';
+import { makePossessive } from './index';
 
 export const hensTemplate: EventTemplate = {
   id: 'hens',
   icon: '💅',
   label: 'Hens Party',
   subtitle: 'Celebrate the bride-to-be',
-  namePattern: (host) => `${host}'s Hens Weekend`,
+  namePattern: (host) => `${makePossessive(host)} Hens Weekend`,
   descriptionPrompt: `Generate a brief, confident description for a hens party weekend.
-Style: Elegant, fun, celebrating friendship. One short paragraph. No emojis.
-Tone: Like a luxurious girls' getaway.`,
+Style: Elegant, fun, celebrating friendship. One short paragraph. No emojis.`,
+  tone: 'glamorous, fun, and celebratory - like a luxurious getaway with your closest friends',
   defaultDurationDays: 3,
   blocks: [
     { name: 'Friday Evening', defaultDuration: 4, attendanceRequired: false },
@@ -52,5 +53,6 @@ Tone: Like a luxurious girls' getaway.`,
     'Queenstown, New Zealand',
   ],
 };
+
 
 

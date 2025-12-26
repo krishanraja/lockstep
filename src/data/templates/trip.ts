@@ -1,14 +1,15 @@
 import type { EventTemplate } from './types';
+import { makePossessive } from './index';
 
 export const tripTemplate: EventTemplate = {
   id: 'trip',
   icon: '✈️',
   label: 'Trip',
   subtitle: 'Adventure awaits',
-  namePattern: (host) => `${host}'s Group Trip`,
+  namePattern: (host) => `${makePossessive(host)} Group Trip`,
   descriptionPrompt: `Generate a brief, exciting description for a group trip.
-Style: Adventurous, organized, enticing. One short paragraph. No emojis.
-Tone: Like a well-planned adventure with friends.`,
+Style: Adventurous, organized, enticing. One short paragraph. No emojis.`,
+  tone: 'adventurous and exciting - like a well-planned journey with great company',
   defaultDurationDays: 5,
   blocks: [
     { name: 'Day 1 - Arrival', defaultDuration: 8, attendanceRequired: false },
@@ -59,5 +60,6 @@ Tone: Like a well-planned adventure with friends.`,
     'Europe',
   ],
 };
+
 
 

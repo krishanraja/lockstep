@@ -1,14 +1,15 @@
 import type { EventTemplate } from './types';
+import { makePossessive } from './index';
 
 export const offsiteTemplate: EventTemplate = {
   id: 'offsite',
   icon: '💼',
   label: 'Team Offsite',
   subtitle: 'Connect and collaborate',
-  namePattern: (host) => `${host} Team Offsite`,
+  namePattern: (host) => `${makePossessive(host)} Team Offsite`,
   descriptionPrompt: `Generate a brief, professional description for a team offsite.
-Style: Professional but warm, purposeful. One short paragraph. No emojis.
-Tone: Like a productive retreat that builds connection.`,
+Style: Professional but warm, purposeful. One short paragraph. No emojis.`,
+  tone: 'professional yet engaging - like a purposeful retreat that builds team connection',
   defaultDurationDays: 2,
   blocks: [
     { name: 'Day 1 - Kickoff', defaultDuration: 4, attendanceRequired: true },
@@ -50,5 +51,6 @@ Tone: Like a productive retreat that builds connection.`,
     'Coworking space',
   ],
 };
+
 
 

@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useWizardState } from '@/hooks/use-wizard-state';
-import { generateBlocks, generateCheckpoints } from '@/data/templates';
+import { generateBlocks, generateCheckpoints, makePossessive } from '@/data/templates';
 
 // Steps
 import { EventTypeStep } from './steps/EventTypeStep';
@@ -35,21 +35,51 @@ export function CreateWizard() {
     goBack,
   } = useWizardState();
 
-  // Varied fallback descriptions for when LLM is unavailable
+  // Tone-aware fallback descriptions for when LLM is unavailable
   const getFallbackDescription = () => {
     const location = state.locationText.split(',')[0];
     const eventType = state.template?.label.toLowerCase() || 'event';
-    const hostName = state.hostName || 'the host';
+    const hostName = makePossessive(state.hostName || 'the host');
+    const templateId = state.template?.id;
     
-    const fallbacks = [
-      `${hostName}'s ${eventType} in ${location} promises to be one for the books. Clear your calendar and get ready.`,
-      `An unforgettable ${eventType} awaits in ${location}. This is the kind of experience that becomes a story you tell for years.`,
-      `${location} is the backdrop for ${hostName}'s ${eventType}. Pack your bags, bring your energy, and expect the unexpected.`,
-      `When ${hostName} said "${location}" for the ${eventType}, we knew this was going to be special. You're not going to want to miss this.`,
-      `The destination is ${location}. The occasion is ${hostName}'s ${eventType}. The vibe? Absolutely unforgettable.`,
-    ];
+    // Tone-specific fallbacks based on event type
+    const fallbacksByType: Record<string, string[]> = {
+      bucks: [
+        `${hostName} ${eventType} in ${location} is going to be legendary. Clear the schedule and get ready for a proper send-off.`,
+        `The crew is heading to ${location} for ${hostName} ${eventType}. This is the kind of weekend you'll be talking about for years.`,
+      ],
+      hens: [
+        `${hostName} ${eventType} in ${location} is set to be unforgettable. Get ready for a weekend of celebrations with the girls.`,
+        `${location} awaits for ${hostName} ${eventType}. A perfect escape with the best company.`,
+      ],
+      wedding: [
+        `Join us in ${location} for ${hostName} wedding celebration. A heartfelt gathering of loved ones to mark this special occasion.`,
+        `${hostName} wedding in ${location} promises to be a beautiful celebration of love and togetherness.`,
+      ],
+      birthday: [
+        `${hostName} birthday celebration in ${location}. Good friends, good times, and a night to remember.`,
+        `Come celebrate ${hostName} birthday in ${location}. An evening with the people who matter most.`,
+      ],
+      reunion: [
+        `The ${state.hostName?.trim() || ''} family is coming together in ${location}. A chance to reconnect, reminisce, and make new memories.`,
+        `${location} is where the ${state.hostName?.trim() || ''} family will gather for a meaningful reunion.`,
+      ],
+      trip: [
+        `${hostName} group trip to ${location} is coming together. Adventure, great company, and unforgettable experiences await.`,
+        `The destination is ${location}. ${hostName} trip is shaping up to be an incredible journey.`,
+      ],
+      offsite: [
+        `${hostName} team offsite in ${location}. A focused retreat designed to connect, collaborate, and move forward together.`,
+        `The team is gathering in ${location} for a productive offsite. Strategy sessions, team building, and meaningful conversations ahead.`,
+      ],
+      custom: [
+        `${hostName} event in ${location} is coming together. Mark your calendar for a gathering worth attending.`,
+        `Join us in ${location} for ${hostName} event. Details to follow, but you won't want to miss this.`,
+      ],
+    };
     
-    return fallbacks[Math.floor(Math.random() * fallbacks.length)];
+    const typeSpecificFallbacks = fallbacksByType[templateId || 'custom'] || fallbacksByType.custom;
+    return typeSpecificFallbacks[Math.floor(Math.random() * typeSpecificFallbacks.length)];
   };
 
   const handleGenerateDescription = async () => {
@@ -67,6 +97,7 @@ export function CreateWizard() {
           hostName: state.hostName,
           location: state.locationText,
           dateRange: `${state.dateRange.start.toISOString()} to ${state.dateRange.end.toISOString()}`,
+          tone: state.template.tone,
         },
       });
 
@@ -320,9 +351,17 @@ export function CreateWizard() {
             <span className="text-sm">{state.step === 'type' ? 'Home' : 'Back'}</span>
           </button>
           
-          <span className="text-sm text-muted-foreground">
-            {currentStepIndex + 1} of {steps.length}
-          </span>
+          <div className="flex items-center gap-4">
+            <Link 
+              to="/auth" 
+              className="text-sm text-primary hover:text-primary/80 transition-colors"
+            >
+              Sign in
+            </Link>
+            <span className="text-sm text-muted-foreground">
+              {currentStepIndex + 1} of {steps.length}
+            </span>
+          </div>
         </div>
       </header>
 

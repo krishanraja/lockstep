@@ -10,25 +10,63 @@ interface RequestBody {
   hostName: string;
   location: string;
   dateRange: string;
+  tone?: string;
 }
 
-// Fallback description templates for variety when LLM is unavailable
-const fallbackTemplates = [
-  (eventType: string, location: string, hostName: string) =>
-    `${hostName}'s ${eventType.toLowerCase()} in ${location.split(',')[0]} promises to be one for the books. Clear your calendar and get ready.`,
-  (eventType: string, location: string, hostName: string) =>
-    `An unforgettable ${eventType.toLowerCase()} awaits in ${location.split(',')[0]}. This is the kind of experience that becomes a story you tell for years.`,
-  (eventType: string, location: string, hostName: string) =>
-    `${location.split(',')[0]} is the backdrop for ${hostName}'s ${eventType.toLowerCase()}. Pack your bags, bring your energy, and expect the unexpected.`,
-  (eventType: string, location: string, hostName: string) =>
-    `When ${hostName} said "${location.split(',')[0]}" for the ${eventType.toLowerCase()}, we knew this was going to be special. You're not going to want to miss this.`,
-  (eventType: string, location: string, hostName: string) =>
-    `The destination is ${location.split(',')[0]}. The occasion is ${hostName}'s ${eventType.toLowerCase()}. The vibe? Absolutely unforgettable.`,
-];
+// Helper for possessive names
+function makePossessive(name: string): string {
+  const trimmed = name.trim();
+  if (!trimmed) return '';
+  if (trimmed.toLowerCase().endsWith('s')) {
+    return `${trimmed}'`;
+  }
+  return `${trimmed}'s`;
+}
+
+// Tone-aware fallback descriptions by event type
+const fallbacksByEventType: Record<string, (location: string, hostName: string) => string[]> = {
+  'bucks party': (location, hostName) => [
+    `${makePossessive(hostName)} bucks party in ${location} is going to be legendary. Clear the schedule and get ready for a proper send-off.`,
+    `The crew is heading to ${location} for ${makePossessive(hostName)} bucks. This is the kind of weekend you'll be talking about for years.`,
+  ],
+  'hens party': (location, hostName) => [
+    `${makePossessive(hostName)} hens party in ${location} is set to be unforgettable. Get ready for a weekend of celebrations.`,
+    `${location} awaits for ${makePossessive(hostName)} hens. A perfect escape with the best company.`,
+  ],
+  'wedding': (location, hostName) => [
+    `Join us in ${location} for ${makePossessive(hostName)} wedding celebration. A heartfelt gathering of loved ones.`,
+    `${makePossessive(hostName)} wedding in ${location} promises to be a beautiful celebration of love and togetherness.`,
+  ],
+  'birthday': (location, hostName) => [
+    `${makePossessive(hostName)} birthday celebration in ${location}. Good friends, good times, and a night to remember.`,
+    `Come celebrate ${makePossessive(hostName)} birthday in ${location}. An evening with the people who matter most.`,
+  ],
+  'reunion': (location, hostName) => [
+    `The ${hostName} family is coming together in ${location}. A chance to reconnect, reminisce, and make new memories.`,
+    `${location} is where the ${hostName} family will gather for a meaningful reunion.`,
+  ],
+  'trip': (location, hostName) => [
+    `${makePossessive(hostName)} group trip to ${location} is coming together. Adventure and unforgettable experiences await.`,
+    `The destination is ${location}. ${makePossessive(hostName)} trip is shaping up to be an incredible journey.`,
+  ],
+  'team offsite': (location, hostName) => [
+    `${makePossessive(hostName)} team offsite in ${location}. A focused retreat to connect, collaborate, and move forward together.`,
+    `The team is gathering in ${location} for a productive offsite. Strategy, team building, and meaningful conversations ahead.`,
+  ],
+};
 
 function getRandomFallback(eventType: string, location: string, hostName: string): string {
-  const randomIndex = Math.floor(Math.random() * fallbackTemplates.length);
-  return fallbackTemplates[randomIndex](eventType, location, hostName);
+  const loc = location.split(',')[0];
+  const eventTypeLower = eventType.toLowerCase();
+  const fallbacks = fallbacksByEventType[eventTypeLower];
+  
+  if (fallbacks) {
+    const options = fallbacks(loc, hostName);
+    return options[Math.floor(Math.random() * options.length)];
+  }
+  
+  // Generic fallback
+  return `${makePossessive(hostName)} ${eventTypeLower} in ${loc} is coming together. Mark your calendar for a gathering worth attending.`;
 }
 
 serve(async (req: Request) => {
@@ -38,7 +76,7 @@ serve(async (req: Request) => {
 
   try {
     const body: RequestBody = await req.json();
-    const { eventType, hostName, location, dateRange } = body;
+    const { eventType, hostName, location, dateRange, tone } = body;
 
     // Validate required fields
     if (!eventType || !hostName || !location) {
@@ -50,19 +88,22 @@ serve(async (req: Request) => {
 
     // Generate a creativity seed for variety on regeneration
     const creativitySeed = Math.random().toString(36).substring(2, 8);
-    const toneOptions = ['confident and exciting', 'warm and inviting', 'bold and adventurous', 'sophisticated yet fun'];
-    const randomTone = toneOptions[Math.floor(Math.random() * toneOptions.length)];
+    
+    // Use provided tone or pick a default based on event type
+    const descriptionTone = tone || 'confident and engaging';
 
-    // Build the prompt with variety built in
-    const prompt = `Generate a brief, ${randomTone} event description for:
+    // Build the prompt with tone awareness
+    const prompt = `Generate a brief event description for:
 - Event type: ${eventType}
 - Host: ${hostName}
 - Location: ${location}
 - Dates: ${dateRange || 'TBD'}
 
+Tone: ${descriptionTone}
+
 Requirements:
 - One short paragraph only (2-3 sentences max)
-- Mature, exciting but not cheesy
+- Match the tone exactly - ${eventType === 'Team Offsite' ? 'keep it professional, no party language' : 'be engaging but appropriate'}
 - No emojis
 - Be creative and unique (seed: ${creativitySeed})
 - Focus on the experience and anticipation
@@ -73,11 +114,11 @@ Just output the description text, nothing else.`;
     const response = await callLLM({
       prompt,
       maxTokens: 150,
-      temperature: 0.9,
+      temperature: 0.85,
     });
 
     if (response.error) {
-      // Return a varied fallback description
+      // Return a tone-appropriate fallback description
       const fallback = getRandomFallback(eventType, location, hostName);
       return new Response(
         JSON.stringify({ 
@@ -105,12 +146,11 @@ Just output the description text, nothing else.`;
   } catch (error) {
     console.error('Error generating description:', error);
     
-    // Return a generic but varied fallback
+    // Return a generic but professional fallback
     const genericFallbacks = [
       'A gathering you won\'t want to miss.',
       'Clear your schedule. This one\'s going to be special.',
       'Some moments are worth making time for. This is one of them.',
-      'Get ready for an experience that\'ll have everyone talking.',
     ];
     const randomFallback = genericFallbacks[Math.floor(Math.random() * genericFallbacks.length)];
     

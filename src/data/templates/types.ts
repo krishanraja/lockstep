@@ -37,6 +37,7 @@ export interface EventTemplate {
   subtitle: string;
   namePattern: (hostName: string) => string;
   descriptionPrompt: string;
+  tone: string; // Tone for AI description generation (e.g., "professional yet engaging")
   blocks: BlockTemplate[];
   questions: QuestionTemplate[];
   checkpoints: CheckpointTemplate[];
@@ -84,5 +85,6 @@ export const initialWizardState: WizardState = {
   isGeneratingDescription: false,
   guests: [],
 };
+
 
 

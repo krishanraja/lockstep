@@ -1,14 +1,15 @@
 import type { EventTemplate } from './types';
+import { makePossessive } from './index';
 
 export const birthdayTemplate: EventTemplate = {
   id: 'birthday',
   icon: '🎂',
   label: 'Birthday',
   subtitle: 'Make it memorable',
-  namePattern: (host) => `${host}'s Birthday`,
+  namePattern: (host) => `${makePossessive(host)} Birthday`,
   descriptionPrompt: `Generate a brief, celebratory description for a birthday gathering.
-Style: Fun, warm, personal. One short paragraph. No emojis.
-Tone: Like a gathering of close friends.`,
+Style: Fun, warm, personal. One short paragraph. No emojis.`,
+  tone: 'joyful and personal - like a gathering of close friends celebrating together',
   defaultDurationDays: 1,
   blocks: [
     { name: 'Pre-drinks', defaultDuration: 2, attendanceRequired: false },
@@ -42,5 +43,6 @@ Tone: Like a gathering of close friends.`,
     'House party',
   ],
 };
+
 
 

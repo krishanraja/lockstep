@@ -1,14 +1,15 @@
 import type { EventTemplate } from './types';
+import { makePossessive } from './index';
 
 export const bucksTemplate: EventTemplate = {
   id: 'bucks',
   icon: '🎉',
   label: 'Bucks Party',
   subtitle: 'Send him off in style',
-  namePattern: (host) => `${host}'s Bucks Weekend`,
+  namePattern: (host) => `${makePossessive(host)} Bucks Weekend`,
   descriptionPrompt: `Generate a brief, confident description for a bucks party weekend.
-Style: Mature, exciting but not cheesy. One short paragraph. No emojis.
-Tone: Like a well-organized adventure awaits.`,
+Style: Mature, exciting but not cheesy. One short paragraph. No emojis.`,
+  tone: 'fun, cheeky, and exciting - like a legendary send-off awaits',
   defaultDurationDays: 3,
   blocks: [
     { name: 'Friday Evening', defaultDuration: 4, attendanceRequired: false },
@@ -52,5 +53,6 @@ Tone: Like a well-organized adventure awaits.`,
     'Las Vegas, USA',
   ],
 };
+
 
 
