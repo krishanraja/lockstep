@@ -99,6 +99,8 @@ const SlideController = ({ children }: SlideControllerProps) => {
     <div 
       className="relative h-[100dvh] w-full overflow-hidden bg-background"
       {...swipeHandlers}
+      onMouseMove={handleUserInteraction}
+      onClick={handleUserInteraction}
     >
       {/* Slide content */}
       <AnimatePresence initial={false} custom={direction} mode="wait">
@@ -174,6 +176,17 @@ const SlideController = ({ children }: SlideControllerProps) => {
           </motion.button>
         ))}
       </div>
+
+      {/* Auto-play indicator */}
+      {isPaused && (
+        <motion.div
+          className="absolute bottom-14 left-1/2 -translate-x-1/2 text-xs text-muted-foreground/40"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+        >
+          Paused
+        </motion.div>
+      )}
 
       {/* Swipe hint - mobile only, first slide only */}
       {currentSlide === 0 && (
