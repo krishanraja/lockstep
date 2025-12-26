@@ -35,9 +35,36 @@ export function CreateWizard() {
     goBack,
   } = useWizardState();
 
+  // Venue types that should use "at" instead of "in"
+  const venueTypes = [
+    'house party', 'home', 'backyard', 'rooftop', 'restaurant', 'bar', 
+    'club', 'venue', 'hotel', 'beach', 'park', 'local restaurant'
+  ];
+
+  // Check if location is a venue type (use "at") vs a city/region (use "in")
+  const isVenueType = (location: string): boolean => {
+    const locationLower = location.toLowerCase().trim();
+    return venueTypes.some(venue => locationLower.includes(venue));
+  };
+
+  // Format location with correct preposition
+  const formatLocationPhrase = (location: string): string => {
+    const loc = location.split(',')[0].trim();
+    if (isVenueType(loc)) {
+      // Add article for venue types: "at a house party", "at the restaurant"
+      const needsArticle = loc.toLowerCase().match(/^(house party|local restaurant|rooftop|backyard|beach|park)$/i);
+      if (needsArticle) {
+        return `at a ${loc.toLowerCase()}`;
+      }
+      return `at ${loc}`;
+    }
+    return `in ${loc}`;
+  };
+
   // Tone-aware fallback descriptions for when LLM is unavailable
   const getFallbackDescription = () => {
     const location = state.locationText.split(',')[0];
+    const locPhrase = formatLocationPhrase(state.locationText);
     const eventType = state.template?.label.toLowerCase() || 'event';
     const hostName = makePossessive(state.hostName || 'the host');
     const templateId = state.template?.id;
@@ -45,36 +72,36 @@ export function CreateWizard() {
     // Tone-specific fallbacks based on event type
     const fallbacksByType: Record<string, string[]> = {
       bucks: [
-        `${hostName} ${eventType} in ${location} is going to be legendary. Clear the schedule and get ready for a proper send-off.`,
-        `The crew is heading to ${location} for ${hostName} ${eventType}. This is the kind of weekend you'll be talking about for years.`,
+        `${hostName} ${eventType} ${locPhrase} is going to be legendary. Clear the schedule and get ready for a proper send-off.`,
+        `The crew is heading ${locPhrase} for ${hostName} ${eventType}. This is the kind of weekend you'll be talking about for years.`,
       ],
       hens: [
-        `${hostName} ${eventType} in ${location} is set to be unforgettable. Get ready for a weekend of celebrations with the girls.`,
-        `${location} awaits for ${hostName} ${eventType}. A perfect escape with the best company.`,
+        `${hostName} ${eventType} ${locPhrase} is set to be unforgettable. Get ready for a weekend of celebrations with the girls.`,
+        `Get ready for ${hostName} ${eventType} ${locPhrase}. A perfect escape with the best company.`,
       ],
       wedding: [
-        `Join us in ${location} for ${hostName} wedding celebration. A heartfelt gathering of loved ones to mark this special occasion.`,
-        `${hostName} wedding in ${location} promises to be a beautiful celebration of love and togetherness.`,
+        `Join us ${locPhrase} for ${hostName} wedding celebration. A heartfelt gathering of loved ones to mark this special occasion.`,
+        `${hostName} wedding ${locPhrase} promises to be a beautiful celebration of love and togetherness.`,
       ],
       birthday: [
-        `${hostName} birthday celebration in ${location}. Good friends, good times, and a night to remember.`,
-        `Come celebrate ${hostName} birthday in ${location}. An evening with the people who matter most.`,
+        `${hostName} birthday celebration ${locPhrase}. Good friends, good times, and a night to remember.`,
+        `Come celebrate ${hostName} birthday ${locPhrase}. An evening with the people who matter most.`,
       ],
       reunion: [
-        `The ${state.hostName?.trim() || ''} family is coming together in ${location}. A chance to reconnect, reminisce, and make new memories.`,
-        `${location} is where the ${state.hostName?.trim() || ''} family will gather for a meaningful reunion.`,
+        `The ${state.hostName?.trim() || ''} family is coming together ${locPhrase}. A chance to reconnect, reminisce, and make new memories.`,
+        `${makePossessive(state.hostName?.trim() || '')} family will gather ${locPhrase} for a meaningful reunion.`,
       ],
       trip: [
         `${hostName} group trip to ${location} is coming together. Adventure, great company, and unforgettable experiences await.`,
         `The destination is ${location}. ${hostName} trip is shaping up to be an incredible journey.`,
       ],
       offsite: [
-        `${hostName} team offsite in ${location}. A focused retreat designed to connect, collaborate, and move forward together.`,
-        `The team is gathering in ${location} for a productive offsite. Strategy sessions, team building, and meaningful conversations ahead.`,
+        `${hostName} team offsite ${locPhrase}. A focused retreat designed to connect, collaborate, and move forward together.`,
+        `The team is gathering ${locPhrase} for a productive offsite. Strategy sessions, team building, and meaningful conversations ahead.`,
       ],
       custom: [
-        `${hostName} event in ${location} is coming together. Mark your calendar for a gathering worth attending.`,
-        `Join us in ${location} for ${hostName} event. Details to follow, but you won't want to miss this.`,
+        `${hostName} event ${locPhrase} is coming together. Mark your calendar for a gathering worth attending.`,
+        `Join us ${locPhrase} for ${hostName} event. Details to follow, but you won't want to miss this.`,
       ],
     };
     

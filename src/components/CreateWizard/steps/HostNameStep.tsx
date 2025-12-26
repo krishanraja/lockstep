@@ -117,11 +117,12 @@ export function HostNameStep({
             {!isEditingEventName ? (
               <button
                 onClick={handleEventNameEdit}
-                className="inline-flex items-center gap-2 text-lg text-primary font-medium
+                className="relative inline-block text-lg text-primary font-medium
                   hover:opacity-80 transition-opacity group"
               >
                 <span>{eventName}</span>
-                <Edit2 className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <Edit2 className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity
+                  absolute -right-6 top-1/2 -translate-y-1/2" />
               </button>
             ) : (
               <input
@@ -170,6 +171,7 @@ export function HostNameStep({
     </div>
   );
 }
+
 
 
 

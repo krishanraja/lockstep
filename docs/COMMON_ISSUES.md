@@ -83,6 +83,41 @@ Cannot find module '@/components/Something'
 
 ---
 
+### Issue: Email confirmation links redirect to localhost
+
+**Symptoms**:
+- User clicks email confirmation link
+- Browser navigates to `localhost:3000` instead of production URL
+- Error: "This site can't be reached" or "ERR_CONNECTION_REFUSED"
+
+**Causes**:
+1. Supabase Dashboard Site URL not configured for production
+2. Redirect URLs whitelist missing production domain
+
+**Solutions**:
+
+**Required Supabase Dashboard Configuration:**
+
+1. Go to **Supabase Dashboard** → **Authentication** → **URL Configuration**
+2. Set **Site URL** to your production URL: `https://inlockstep.ai`
+3. Add to **Redirect URLs**:
+   - `https://inlockstep.ai/**`
+   - `http://localhost:3000/**` (for local development)
+   - `http://localhost:8080/**` (for local development)
+
+**Optional: Customize Email Templates**
+
+1. Go to **Authentication** → **Email Templates**
+2. Update templates to use your branding
+3. The `{{ .ConfirmationURL }}` variable uses the Site URL you configured
+
+**Important Notes**:
+- The `emailRedirectTo` option in code is overridden by Supabase's Site URL for confirmation emails
+- After updating Site URL, new signups will receive correct links
+- Existing unconfirmed users may need to request a new confirmation email
+
+---
+
 ### Issue: Magic links not arriving
 
 **Symptoms**:
