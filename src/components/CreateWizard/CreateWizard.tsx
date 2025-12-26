@@ -35,6 +35,23 @@ export function CreateWizard() {
     goBack,
   } = useWizardState();
 
+  // Varied fallback descriptions for when LLM is unavailable
+  const getFallbackDescription = () => {
+    const location = state.locationText.split(',')[0];
+    const eventType = state.template?.label.toLowerCase() || 'event';
+    const hostName = state.hostName || 'the host';
+    
+    const fallbacks = [
+      `${hostName}'s ${eventType} in ${location} promises to be one for the books. Clear your calendar and get ready.`,
+      `An unforgettable ${eventType} awaits in ${location}. This is the kind of experience that becomes a story you tell for years.`,
+      `${location} is the backdrop for ${hostName}'s ${eventType}. Pack your bags, bring your energy, and expect the unexpected.`,
+      `When ${hostName} said "${location}" for the ${eventType}, we knew this was going to be special. You're not going to want to miss this.`,
+      `The destination is ${location}. The occasion is ${hostName}'s ${eventType}. The vibe? Absolutely unforgettable.`,
+    ];
+    
+    return fallbacks[Math.floor(Math.random() * fallbacks.length)];
+  };
+
   const handleGenerateDescription = async () => {
     if (!state.template || !state.eventName || !state.dateRange || !state.locationText) {
       return;
@@ -54,16 +71,16 @@ export function CreateWizard() {
       });
 
       if (error || !data?.description) {
-        // Fallback description
-        const fallbackDescription = `A ${state.template.label.toLowerCase()} in ${state.locationText.split(',')[0]}. Join us for an unforgettable experience.`;
-        setAIDescription(fallbackDescription);
+        // Fallback description with variety
+        setAIDescription(getFallbackDescription());
       } else {
         setAIDescription(data.description);
       }
     } catch (err) {
       // Use fallback description on any error
-      const fallbackDescription = `A ${state.template.label.toLowerCase()} in ${state.locationText.split(',')[0]}. Join us for an unforgettable experience.`;
-      setAIDescription(fallbackDescription);
+      setAIDescription(getFallbackDescription());
+    } finally {
+      setGeneratingDescription(false);
     }
   };
 
@@ -329,4 +346,5 @@ export function CreateWizard() {
 }
 
 export default CreateWizard;
+
 

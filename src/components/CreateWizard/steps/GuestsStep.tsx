@@ -1,6 +1,40 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Send, Users, Clock, X } from 'lucide-react';
+import { Send, Users, Clock, X, Loader2, UserPlus } from 'lucide-react';
+
+// Contact Picker API types (not yet in standard TypeScript lib)
+interface ContactAddress {
+  city?: string;
+  country?: string;
+  postalCode?: string;
+  region?: string;
+  streetAddress?: string;
+}
+
+interface ContactInfo {
+  name?: string[];
+  tel?: string[];
+  email?: string[];
+  address?: ContactAddress[];
+  icon?: Blob[];
+}
+
+interface ContactsManager {
+  select(
+    properties: ('name' | 'tel' | 'email' | 'address' | 'icon')[],
+    options?: { multiple?: boolean }
+  ): Promise<ContactInfo[]>;
+  getProperties(): Promise<string[]>;
+}
+
+declare global {
+  interface Navigator {
+    contacts?: ContactsManager;
+  }
+  interface Window {
+    ContactsManager?: new () => ContactsManager;
+  }
+}
 
 interface GuestsStepProps {
   eventName: string;
@@ -9,6 +43,19 @@ interface GuestsStepProps {
   onSendInvites: () => void;
   onSkip: () => void;
   isSubmitting: boolean;
+}
+
+// Check if Contact Picker API is available
+function isContactPickerSupported(): boolean {
+  return 'contacts' in navigator && 'ContactsManager' in window;
+}
+
+// Normalize phone numbers for consistency
+function normalizePhoneNumber(phone: string): string {
+  // Remove all non-digit characters except + at the start
+  const cleaned = phone.replace(/[^\d+]/g, '');
+  // If it starts with a country code, keep it; otherwise assume it's a local number
+  return cleaned;
 }
 
 export function GuestsStep({
@@ -20,6 +67,8 @@ export function GuestsStep({
   isSubmitting,
 }: GuestsStepProps) {
   const [inputValue, setInputValue] = useState('');
+  const [isImporting, setIsImporting] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -38,6 +87,7 @@ export function GuestsStep({
     const value = e.target.value;
     setInputValue(value);
     onGuestsChange(parseGuestInput(value));
+    setImportError(null);
   };
 
   const handleRemoveGuest = (index: number) => {
@@ -46,7 +96,69 @@ export function GuestsStep({
     setInputValue(newGuests.join('\n'));
   };
 
+  // Import contacts using the native Contact Picker API
+  const handleImportContacts = async () => {
+    setImportError(null);
+    
+    if (!isContactPickerSupported()) {
+      setImportError('Contact import requires a mobile browser (Chrome/Edge on Android). Try pasting contacts manually.');
+      return;
+    }
+
+    setIsImporting(true);
+
+    try {
+      // Request contacts with name and phone number
+      const contacts = await navigator.contacts!.select(
+        ['name', 'tel'],
+        { multiple: true }
+      );
+
+      if (contacts && contacts.length > 0) {
+        const newGuests: string[] = [];
+
+        for (const contact of contacts) {
+          // Prefer phone number, fall back to name
+          if (contact.tel && contact.tel.length > 0) {
+            // Use the first phone number
+            const phone = normalizePhoneNumber(contact.tel[0]);
+            if (phone) {
+              // If we have a name, format as "Name: Phone"
+              if (contact.name && contact.name.length > 0 && contact.name[0]) {
+                newGuests.push(`${contact.name[0]}: ${phone}`);
+              } else {
+                newGuests.push(phone);
+              }
+            }
+          } else if (contact.name && contact.name.length > 0 && contact.name[0]) {
+            // No phone, just use name
+            newGuests.push(contact.name[0]);
+          }
+        }
+
+        if (newGuests.length > 0) {
+          // Merge with existing guests (avoid duplicates)
+          const existingSet = new Set(guests.map(g => g.toLowerCase()));
+          const uniqueNew = newGuests.filter(g => !existingSet.has(g.toLowerCase()));
+          const mergedGuests = [...guests, ...uniqueNew];
+          
+          onGuestsChange(mergedGuests);
+          setInputValue(mergedGuests.join('\n'));
+        }
+      }
+    } catch (err: any) {
+      // User cancelled or permission denied
+      if (err.name !== 'AbortError') {
+        console.error('Contact import error:', err);
+        setImportError('Could not access contacts. Please check permissions and try again.');
+      }
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
   const guestCount = guests.length;
+  const contactPickerAvailable = isContactPickerSupported();
 
   return (
     <div className="h-full flex flex-col px-6 py-8">
@@ -130,24 +242,47 @@ John Smith"
           </motion.div>
         )}
 
-        {/* Import contacts button (placeholder) */}
+        {/* Import contacts button */}
         <motion.button
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.3, delay: 0.2 }}
-          className="mt-4 w-full py-3 rounded-xl
+          className={`mt-4 w-full py-3 rounded-xl
             bg-card border border-border/50
-            text-muted-foreground text-sm
+            text-sm
             flex items-center justify-center gap-2
-            hover:border-primary/50 transition-colors"
-          onClick={() => {
-            // Placeholder for contacts import
-            alert('Contact import coming soon!');
-          }}
+            transition-all duration-200
+            ${contactPickerAvailable 
+              ? 'text-foreground hover:border-primary hover:bg-primary/5 active:scale-[0.98]' 
+              : 'text-muted-foreground hover:border-primary/50'
+            }
+            disabled:opacity-50 disabled:cursor-not-allowed`}
+          onClick={handleImportContacts}
+          disabled={isImporting}
         >
-          <Users className="w-4 h-4" />
-          Import from Contacts
+          {isImporting ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Importing...
+            </>
+          ) : (
+            <>
+              <UserPlus className="w-4 h-4" />
+              Import from Contacts
+            </>
+          )}
         </motion.button>
+
+        {/* Import error message */}
+        {importError && (
+          <motion.p
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mt-2 text-xs text-amber-400/80 text-center"
+          >
+            {importError}
+          </motion.p>
+        )}
       </motion.div>
 
       {/* Action buttons */}
@@ -178,7 +313,7 @@ John Smith"
             </>
           ) : (
             <>
-              {guestCount > 0 ? 'Send Invites' : 'Create Event'}
+              {guestCount > 0 ? 'Create Event' : 'Create Event'}
               <Send className="w-5 h-5" />
             </>
           )}
@@ -201,4 +336,3 @@ John Smith"
     </div>
   );
 }
-

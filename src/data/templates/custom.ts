@@ -28,3 +28,4 @@ Tone: Like a thoughtfully planned get-together.`,
   suggestedLocations: [],
 };
 
+
