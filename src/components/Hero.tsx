@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 import { RotatingText } from "@/components/animations/KineticText";
 import { Reveal, MorphingBlob } from "@/components/animations/Reveal";
@@ -8,6 +8,7 @@ import lockstepLogoLight from "@/assets/lockstep-logo-light.png";
 import lockstepIcon from "@/assets/lockstep-icon.png";
 
 const Hero = () => {
+  const navigate = useNavigate();
   const eventTypes = ["Weddings.", "Bachelor Parties.", "Reunions.", "Trips.", "Offsites."];
 
   return (
@@ -30,22 +31,24 @@ const Hero = () => {
       />
 
       {/* Header with logo and sign-in */}
-      <Reveal delay={0}>
-        <div className="relative z-10 flex items-center justify-between mb-4 md:mb-6">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 md:w-10 md:h-10 rounded-lg bg-[#F5F7FA] flex items-center justify-center">
-              <img src={lockstepIcon} alt="" className="w-5 h-5 md:w-6 md:h-6" />
+      <div className="relative z-20">
+        <Reveal delay={0}>
+          <div className="flex items-center justify-between mb-4 md:mb-6">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 md:w-10 md:h-10 rounded-lg bg-[#F5F7FA] flex items-center justify-center">
+                <img src={lockstepIcon} alt="" className="w-5 h-5 md:w-6 md:h-6" />
+              </div>
+              <img src={lockstepLogoLight} alt="Lockstep" className="h-5 md:h-6" />
             </div>
-            <img src={lockstepLogoLight} alt="Lockstep" className="h-5 md:h-6" />
+            <Link 
+              to="/auth" 
+              className="relative z-30 text-sm text-primary hover:text-primary/80 transition-colors px-3 py-2 -mr-3"
+            >
+              Sign in
+            </Link>
           </div>
-          <Link 
-            to="/auth" 
-            className="text-sm text-primary hover:text-primary/80 transition-colors"
-          >
-            Sign in
-          </Link>
-        </div>
-      </Reveal>
+        </Reveal>
+      </div>
 
       {/* Main content */}
       <div className="relative z-10 flex-1 grid lg:grid-cols-2 gap-6 lg:gap-12 items-center">
@@ -80,7 +83,7 @@ const Hero = () => {
 
           {/* CTA */}
           <Reveal delay={0.5}>
-            <HeroButton>
+            <HeroButton onClick={() => navigate('/create')}>
               Create your first event
               <ArrowRight className="w-4 h-4 md:w-5 md:h-5" />
             </HeroButton>

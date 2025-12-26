@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect, useMemo } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -15,26 +15,37 @@ const Auth = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
+
+  // Get the return URL from query params (defaults to /dashboard)
+  const returnTo = useMemo(() => {
+    const param = searchParams.get('returnTo');
+    // Validate it's a safe relative path
+    if (param && param.startsWith('/') && !param.startsWith('//')) {
+      return param;
+    }
+    return '/dashboard';
+  }, [searchParams]);
 
   // Check if already logged in
   useEffect(() => {
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        navigate("/");
+        navigate(returnTo);
       }
     };
     checkAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (session) {
-        navigate("/");
+        navigate(returnTo);
       }
     });
 
     return () => subscription.unsubscribe();
-  }, [navigate]);
+  }, [navigate, returnTo]);
 
   const validateForm = () => {
     const newErrors: { email?: string; password?: string } = {};
@@ -77,7 +88,8 @@ const Auth = () => {
           email,
           password,
           options: {
-            emailRedirectTo: `${window.location.origin}/`,
+            // Redirect to the returnTo path after email verification
+            emailRedirectTo: `${window.location.origin}${returnTo}`,
           },
         });
         if (error) throw error;

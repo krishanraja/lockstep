@@ -1,10 +1,16 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { useWizardState } from '@/hooks/use-wizard-state';
+import { 
+  useWizardState, 
+  saveWizardState, 
+  loadWizardState, 
+  clearWizardState,
+  hasPendingWizardState,
+} from '@/hooks/use-wizard-state';
 import { generateBlocks, generateCheckpoints, makePossessive } from '@/data/templates';
 
 // Steps
@@ -33,7 +39,40 @@ export function CreateWizard() {
     setGuests,
     goNext,
     goBack,
+    restoreState,
   } = useWizardState();
+  
+  // Track if we've already attempted auto-creation (to prevent loops)
+  const hasAttemptedAutoCreate = useRef(false);
+
+  // On mount, check for saved wizard state and restore it
+  // If returning from auth with pending state, auto-create the event
+  useEffect(() => {
+    const checkAndRestoreState = async () => {
+      // Check if there's saved state to restore
+      const savedState = loadWizardState();
+      if (!savedState) return;
+
+      // Restore the wizard state
+      restoreState(savedState);
+
+      // If we have a pending event (was at guests step) and user is now logged in,
+      // auto-create the event
+      if (hasPendingWizardState() && !hasAttemptedAutoCreate.current) {
+        hasAttemptedAutoCreate.current = true;
+        
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          // Small delay to let state settle, then trigger event creation
+          setTimeout(() => {
+            handleCreateEventWithState(savedState);
+          }, 100);
+        }
+      }
+    };
+
+    checkAndRestoreState();
+  }, [restoreState]);
 
   // Venue types that should use "at" instead of "in"
   const venueTypes = [
@@ -142,6 +181,138 @@ export function CreateWizard() {
     }
   };
 
+  // Core event creation logic - can be called with current state or restored state
+  const createEventWithData = async (eventData: typeof state, userId: string): Promise<string | null> => {
+    if (!eventData.template || !eventData.dateRange) return null;
+
+    // Create event
+    const { data: event, error: eventError } = await supabase
+      .from("events")
+      .insert({
+        organiser_id: userId,
+        title: eventData.eventName,
+        description: eventData.aiDescription,
+        location: eventData.locationText,
+        start_date: eventData.dateRange.start.toISOString(),
+        end_date: eventData.dateRange.end.toISOString(),
+        status: "active",
+        settings: {
+          template: eventData.template.id,
+          placeId: eventData.location?.placeId || null,
+        },
+      })
+      .select()
+      .single();
+
+    if (eventError) throw eventError;
+
+    // Generate and create blocks
+    const blocks = generateBlocks(
+      eventData.template,
+      eventData.dateRange.start,
+      eventData.dateRange.end
+    );
+
+    if (blocks.length > 0) {
+      const { error: blocksError } = await supabase.from("blocks").insert(
+        blocks.map((block, index) => ({
+          event_id: event.id,
+          name: block.name,
+          start_time: block.startTime.toISOString(),
+          end_time: block.endTime.toISOString(),
+          order_index: index,
+        }))
+      );
+      if (blocksError) throw blocksError;
+    }
+
+    // Create questions from template
+    if (eventData.template.questions.length > 0) {
+      const { error: questionsError } = await supabase.from("questions").insert(
+        eventData.template.questions.map((q, index) => ({
+          event_id: event.id,
+          type: q.type,
+          prompt: q.prompt,
+          options: q.options || null,
+          required: q.required ?? true,
+          order_index: index,
+        }))
+      );
+      if (questionsError) throw questionsError;
+    }
+
+    // Generate and create checkpoints
+    const checkpoints = generateCheckpoints(eventData.template, eventData.dateRange.start);
+    if (checkpoints.length > 0) {
+      const { error: checkpointsError } = await supabase.from("checkpoints").insert(
+        checkpoints.map((cp) => ({
+          event_id: event.id,
+          trigger_at: cp.triggerAt.toISOString(),
+          type: cp.type,
+          message: `Reminder: ${cp.name}`,
+        }))
+      );
+      if (checkpointsError) throw checkpointsError;
+    }
+
+    // Create guests if any
+    if (eventData.guests.length > 0) {
+      const guestRecords = eventData.guests.map((g) => {
+        // Check if it's a phone number or a name
+        const isPhone = /^[+\d\s()-]+$/.test(g);
+        return {
+          event_id: event.id,
+          name: isPhone ? 'Guest' : g,
+          phone: isPhone ? g.replace(/\s/g, '') : null,
+        };
+      });
+
+      const { error: guestsError } = await supabase.from("guests").insert(guestRecords);
+      if (guestsError) throw guestsError;
+    }
+
+    return event.id;
+  };
+
+  // Handle event creation with saved state (for auto-create after auth)
+  const handleCreateEventWithState = async (savedState: typeof state) => {
+    if (!savedState.template || !savedState.dateRange) return;
+
+    setIsSubmitting(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        // Still not logged in, shouldn't happen but handle gracefully
+        return;
+      }
+
+      const eventId = await createEventWithData(savedState, user.id);
+      
+      if (eventId) {
+        // Clear saved state after successful creation
+        clearWizardState();
+
+        toast({
+          title: "Event created!",
+          description: `${savedState.eventName} is ready. ${savedState.guests.length > 0 ? 'Invites will be sent shortly.' : ''}`,
+        });
+
+        // Navigate to the specific event page
+        navigate(`/events/${eventId}`);
+      }
+    } catch (error: any) {
+      console.error("Error creating event:", error);
+      toast({
+        title: "Error creating event",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleCreateEvent = async () => {
     if (!state.template || !state.dateRange) return;
 
@@ -151,107 +322,33 @@ export function CreateWizard() {
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
+        // Save wizard state before redirecting to auth
+        saveWizardState(state);
+        
         toast({
-          title: "Please sign in",
-          description: "You need to be signed in to create an event.",
-          variant: "destructive",
+          title: "Almost there!",
+          description: "Sign in to save your event.",
         });
-        navigate("/auth");
+        
+        // Redirect to auth with return URL
+        navigate("/auth?returnTo=/create");
         return;
       }
 
-      // Create event
-      const { data: event, error: eventError } = await supabase
-        .from("events")
-        .insert({
-          organiser_id: user.id,
-          title: state.eventName,
-          description: state.aiDescription,
-          location: state.locationText,
-          start_date: state.dateRange.start.toISOString(),
-          end_date: state.dateRange.end.toISOString(),
-          status: "active",
-          settings: {
-            template: state.template.id,
-            placeId: state.location?.placeId || null,
-          },
-        })
-        .select()
-        .single();
+      const eventId = await createEventWithData(state, user.id);
+      
+      if (eventId) {
+        // Clear any saved state
+        clearWizardState();
 
-      if (eventError) throw eventError;
-
-      // Generate and create blocks
-      const blocks = generateBlocks(
-        state.template,
-        state.dateRange.start,
-        state.dateRange.end
-      );
-
-      if (blocks.length > 0) {
-        const { error: blocksError } = await supabase.from("blocks").insert(
-          blocks.map((block, index) => ({
-            event_id: event.id,
-            name: block.name,
-            start_time: block.startTime.toISOString(),
-            end_time: block.endTime.toISOString(),
-            order_index: index,
-          }))
-        );
-        if (blocksError) throw blocksError;
-      }
-
-      // Create questions from template
-      if (state.template.questions.length > 0) {
-        const { error: questionsError } = await supabase.from("questions").insert(
-          state.template.questions.map((q, index) => ({
-            event_id: event.id,
-            type: q.type,
-            prompt: q.prompt,
-            options: q.options || null,
-            required: q.required ?? true,
-            order_index: index,
-          }))
-        );
-        if (questionsError) throw questionsError;
-      }
-
-      // Generate and create checkpoints
-      const checkpoints = generateCheckpoints(state.template, state.dateRange.start);
-      if (checkpoints.length > 0) {
-        const { error: checkpointsError } = await supabase.from("checkpoints").insert(
-          checkpoints.map((cp) => ({
-            event_id: event.id,
-            trigger_at: cp.triggerAt.toISOString(),
-            type: cp.type,
-            message: `Reminder: ${cp.name}`,
-          }))
-        );
-        if (checkpointsError) throw checkpointsError;
-      }
-
-      // Create guests if any
-      if (state.guests.length > 0) {
-        const guestRecords = state.guests.map((g) => {
-          // Check if it's a phone number or a name
-          const isPhone = /^[+\d\s()-]+$/.test(g);
-          return {
-            event_id: event.id,
-            name: isPhone ? 'Guest' : g,
-            phone: isPhone ? g.replace(/\s/g, '') : null,
-          };
+        toast({
+          title: "Event created!",
+          description: `${state.eventName} is ready. ${state.guests.length > 0 ? 'Invites will be sent shortly.' : ''}`,
         });
 
-        const { error: guestsError } = await supabase.from("guests").insert(guestRecords);
-        if (guestsError) throw guestsError;
+        // Navigate to the specific event page
+        navigate(`/events/${eventId}`);
       }
-
-      toast({
-        title: "Event created!",
-        description: `${state.eventName} is ready. ${state.guests.length > 0 ? 'Invites will be sent shortly.' : ''}`,
-      });
-
-      navigate(`/dashboard`);
     } catch (error: any) {
       console.error("Error creating event:", error);
       toast({
