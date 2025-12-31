@@ -3,7 +3,6 @@ import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
 import { 
   useWizardState, 
   saveWizardState, 
@@ -23,8 +22,8 @@ import { GuestsStep } from './steps/GuestsStep';
 
 export function CreateWizard() {
   const navigate = useNavigate();
-  const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   
   const {
     state,
@@ -316,21 +315,12 @@ export function CreateWizard() {
         // Clear saved state after successful creation
         clearWizardState();
 
-        toast({
-          title: "Event created!",
-          description: `${savedState.eventName} is ready. ${savedState.guests.length > 0 ? 'Invites will be sent shortly.' : ''}`,
-        });
-
         // Navigate to the specific event page
         navigate(`/events/${eventId}`);
       }
     } catch (error: any) {
       console.error("Error creating event:", error);
-      toast({
-        title: "Error creating event",
-        description: error.message,
-        variant: "destructive",
-      });
+      setError(error.message || "Failed to create event. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -348,11 +338,6 @@ export function CreateWizard() {
         // Save wizard state before redirecting to auth
         saveWizardState(state);
         
-        toast({
-          title: "Almost there!",
-          description: "Sign in to save your event.",
-        });
-        
         // Redirect to auth with return URL
         navigate("/auth?returnTo=/create");
         return;
@@ -363,22 +348,14 @@ export function CreateWizard() {
       if (eventId) {
         // Clear any saved state
         clearWizardState();
-
-        toast({
-          title: "Event created!",
-          description: `${state.eventName} is ready. ${state.guests.length > 0 ? 'Invites will be sent shortly.' : ''}`,
-        });
+        setError(null);
 
         // Navigate to the specific event page
         navigate(`/events/${eventId}`);
       }
     } catch (error: any) {
       console.error("Error creating event:", error);
-      toast({
-        title: "Error creating event",
-        description: error.message,
-        variant: "destructive",
-      });
+      setError(error.message || "Failed to create event. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -448,7 +425,6 @@ export function CreateWizard() {
             onRegenerateDescription={handleGenerateDescription}
             onCustomize={() => {
               // TODO: Open customization modal
-              toast({ title: "Customization coming soon!" });
             }}
             onConfirm={goNext}
           />
@@ -511,6 +487,13 @@ export function CreateWizard() {
           </div>
         </div>
       </header>
+
+      {/* Error message */}
+      {error && (
+        <div className="px-4 py-2 bg-destructive/10 border-t border-destructive/20">
+          <p className="text-sm text-destructive">{error}</p>
+        </div>
+      )}
 
       {/* Step content */}
       <main className="flex-1 overflow-hidden">

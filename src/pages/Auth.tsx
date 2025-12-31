@@ -2,7 +2,6 @@ import { useState, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
 
 const emailSchema = z.string().email("Please enter a valid email address");
@@ -16,7 +15,6 @@ const Auth = () => {
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { toast } = useToast();
 
   // Get the return URL from query params (defaults to /dashboard)
   const returnTo = useMemo(() => {
@@ -78,11 +76,7 @@ const Auth = () => {
           password,
         });
         if (error) throw error;
-        
-        toast({
-          title: "Welcome back!",
-          description: "You've successfully signed in.",
-        });
+        // Navigation happens automatically via onAuthStateChange
       } else {
         const { error } = await supabase.auth.signUp({
           email,
@@ -93,11 +87,8 @@ const Auth = () => {
           },
         });
         if (error) throw error;
-
-        toast({
-          title: "Account created!",
-          description: "Please check your email to confirm your account.",
-        });
+        // Show success message inline or navigate
+        setErrors({});
       }
     } catch (error: any) {
       let message = error.message;
@@ -107,11 +98,12 @@ const Auth = () => {
         message = "Invalid email or password. Please try again.";
       }
       
-      toast({
-        title: "Error",
-        description: message,
-        variant: "destructive",
-      });
+      // Set error state for inline display
+      if (isLogin) {
+        setErrors({ password: message });
+      } else {
+        setErrors({ email: message });
+      }
     } finally {
       setIsLoading(false);
     }

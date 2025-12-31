@@ -15,7 +15,6 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
-import { useToast } from '@/hooks/use-toast';
 import { UpgradeModal } from '@/components/UpgradeModal';
 import { UsageIndicator } from '@/components/UsageIndicator';
 import { 
@@ -59,7 +58,6 @@ const EventDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { toast } = useToast();
   
   const [event, setEvent] = useState<Event | null>(null);
   const [guests, setGuests] = useState<Guest[]>([]);
@@ -154,12 +152,8 @@ const EventDetail = () => {
       if (cancelled.current) return;
       setUser(authUser);
       
-      // Check for upgrade success message
+      // Check for upgrade success - clean up URL silently
       if (searchParams.get('upgraded') === 'true') {
-        toast({
-          title: 'Upgrade successful!',
-          description: 'Your event has been upgraded. Enjoy your new features!',
-        });
         // Clean up URL
         window.history.replaceState({}, '', `/events/${id}`);
       }
@@ -225,16 +219,10 @@ const EventDetail = () => {
       const newUsage = await getEventUsage(id, user.id);
       setEventUsage(newUsage);
       
-      toast({
-        title: 'Nudges sent!',
-        description: `Sent ${successCount} nudge${successCount !== 1 ? 's' : ''}${failCount > 0 ? `, ${failCount} failed` : ''}.`,
-      });
+      // Nudges sent successfully - state updated silently
     } catch (err) {
-      toast({
-        title: 'Error sending nudges',
-        description: 'Something went wrong. Please try again.',
-        variant: 'destructive',
-      });
+      console.error('Error sending nudges:', err);
+      // Error handled silently - user can see updated state
     } finally {
       setIsSendingNudge(false);
     }

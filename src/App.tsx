@@ -16,6 +16,7 @@ const Dashboard = lazy(() => import("./pages/Dashboard"));
 const RSVPPage = lazy(() => import("./pages/RSVPPage"));
 const EventDetail = lazy(() => import("./pages/EventDetail"));
 const Pricing = lazy(() => import("./pages/Pricing"));
+const Profile = lazy(() => import("./pages/Profile"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -51,6 +52,7 @@ const App = () => (
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/events/:id" element={<EventDetail />} />
             <Route path="/pricing" element={<Pricing />} />
+            <Route path="/profile" element={<Profile />} />
             
             {/* Catch-all */}
             <Route path="*" element={<NotFound />} />

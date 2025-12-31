@@ -1,10 +1,9 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Calendar, Users, ChevronRight, Sparkles, RefreshCw, LogOut, Crown } from 'lucide-react';
+import { Plus, Calendar, Users, ChevronRight, Sparkles, RefreshCw, LogOut, Crown, User } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { format, differenceInDays } from 'date-fns';
-import { useToast } from '@/hooks/use-toast';
 import { UsageSummary } from '@/components/UsageIndicator';
 import { getSubscription, getEventUsage, PricingTier, TIER_LIMITS } from '@/services/subscription';
 
@@ -40,7 +39,6 @@ interface UserSubscription {
 const Dashboard = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { toast } = useToast();
   const [events, setEvents] = useState<Event[]>([]);
   const [eventStats, setEventStats] = useState<Map<string, EventStats>>(new Map());
   const [aiSummaries, setAiSummaries] = useState<Map<string, AISummary>>(new Map());
@@ -177,12 +175,8 @@ const Dashboard = () => {
       }
       setUser(user);
       
-      // Check for upgrade success message
+      // Check for upgrade success - clean up URL silently
       if (searchParams.get('upgraded') === 'true') {
-        toast({
-          title: 'Upgrade successful!',
-          description: 'Your plan has been upgraded. Enjoy your new features!',
-        });
         // Clean up URL
         window.history.replaceState({}, '', '/dashboard');
       }
@@ -241,7 +235,7 @@ const Dashboard = () => {
     };
     
     checkAuth();
-  }, [navigate, fetchEventStats, generateAISummary, searchParams, toast]);
+  }, [navigate, fetchEventStats, generateAISummary, searchParams]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -285,12 +279,12 @@ const Dashboard = () => {
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => navigate('/pricing')}
+              onClick={() => navigate('/profile')}
               className="p-2 rounded-full text-muted-foreground hover:text-primary
                 hover:bg-primary/10 transition-colors"
-              title="View plans"
+              title="Profile"
             >
-              <Crown className="w-5 h-5" />
+              <User className="w-5 h-5" />
             </button>
             <button
               onClick={handleSignOut}
@@ -457,9 +451,7 @@ const Dashboard = () => {
                   {needsAttention && stats.pendingCount >= 3 && (
                     <div className="border-t border-border/50 px-4 py-3 bg-maybe/5">
                       <button
-                        onClick={() => {
-                          toast({ title: 'Nudge feature coming soon!' });
-                        }}
+                        onClick={() => navigate(`/events/${event.id}`)}
                         className="w-full py-2 rounded-xl bg-maybe text-background font-medium text-sm
                           hover:opacity-90 transition-opacity"
                       >

@@ -109,13 +109,6 @@ function PricingCard({
         </div>
       )}
 
-      {isCurrentPlan && (
-        <div className="absolute -top-3 right-4">
-          <span className="bg-confirmed/20 text-confirmed text-xs font-semibold px-3 py-1 rounded-full border border-confirmed/30">
-            Current Plan
-          </span>
-        </div>
-      )}
 
       <div className="mb-4">
         <h3 className="text-xl font-bold text-foreground mb-1">
@@ -158,7 +151,7 @@ function PricingCard({
               : 'bg-button-bg text-button-text hover:bg-button-bg/90'
         }`}
       >
-        {isCurrentPlan ? 'Current Plan' : tier === 'free' ? 'Get Started' : 'Upgrade'}
+        {isCurrentPlan ? 'Active' : tier === 'free' ? 'Get Started' : 'Upgrade'}
         {!isCurrentPlan && tier !== 'free' && <ArrowRight className="w-4 h-4 ml-2" />}
       </Button>
     </motion.div>
@@ -228,14 +221,15 @@ const Pricing = () => {
   const tiers: PricingTier[] = ['free', 'pro', 'wedding', 'business'];
 
   return (
-    <div className="min-h-screen bg-background overflow-auto">
+    <div className="h-dvh w-full flex flex-col bg-background overflow-hidden">
       {/* Background effects */}
       <div className="fixed inset-0 pointer-events-none">
         <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/10 rounded-full blur-3xl" />
         <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
       </div>
 
-      <div className="relative z-10 container max-w-6xl mx-auto px-4 py-12">
+      <main className="flex-1 overflow-y-auto relative z-10">
+        <div className="container max-w-6xl mx-auto px-4 py-12">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -343,7 +337,8 @@ const Pricing = () => {
             {user ? '← Back to Dashboard' : '← Back to Home'}
           </button>
         </div>
-      </div>
+        </div>
+      </main>
     </div>
   );
 };
