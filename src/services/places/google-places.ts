@@ -94,9 +94,26 @@ export function getStaticMapUrl(
     style?: 'dark' | 'light';
   }
 ): string {
+  // Validate coordinates
+  if (
+    typeof lat !== 'number' || 
+    typeof lng !== 'number' ||
+    isNaN(lat) || 
+    isNaN(lng) ||
+    lat < -90 || 
+    lat > 90 ||
+    lng < -180 || 
+    lng > 180
+  ) {
+    console.warn('[getStaticMapUrl] Invalid coordinates provided:', { lat, lng });
+    // Return placeholder for invalid coordinates
+    return `https://via.placeholder.com/${options?.width || 400}x${options?.height || 200}/1a1a2e/5B6CFF?text=Invalid+Location`;
+  }
+
   const apiKey = import.meta.env.VITE_GOOGLE_PLACES_API_KEY;
   
   if (!apiKey) {
+    console.warn('[getStaticMapUrl] Google Places API key not configured');
     // Return a placeholder for development
     return `https://via.placeholder.com/${options?.width || 400}x${options?.height || 200}/1a1a2e/5B6CFF?text=Map`;
   }
@@ -105,12 +122,18 @@ export function getStaticMapUrl(
   const height = options?.height || 200;
   const zoom = options?.zoom || 12;
   
+  // Validate zoom level
+  const validZoom = Math.max(0, Math.min(21, zoom));
+  if (zoom !== validZoom) {
+    console.warn('[getStaticMapUrl] Zoom level out of range, clamping:', zoom, '->', validZoom);
+  }
+  
   // Dark mode map style
   const darkStyle = '&style=element:geometry|color:0x1a1a2e&style=element:labels.text.fill|color:0x8a8a8a&style=element:labels.text.stroke|color:0x1a1a2e&style=feature:road|element:geometry|color:0x2a2a3e&style=feature:water|element:geometry|color:0x0e1116';
   
   const styleParam = options?.style === 'light' ? '' : darkStyle;
 
-  return `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=${zoom}&size=${width}x${height}&maptype=roadmap${styleParam}&markers=color:0x5B6CFF|${lat},${lng}&key=${apiKey}`;
+  return `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=${validZoom}&size=${width}x${height}&maptype=roadmap${styleParam}&markers=color:0x5B6CFF|${lat},${lng}&key=${apiKey}`;
 }
 
 // Geocode an address to get coordinates

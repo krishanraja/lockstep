@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, User, LogOut } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   useWizardState, 
@@ -24,6 +24,7 @@ export function CreateWizard() {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [user, setUser] = useState<any>(null);
   
   const {
     state,
@@ -51,6 +52,32 @@ export function CreateWizard() {
     isMountedRef.current = true;
     return () => {
       isMountedRef.current = false;
+    };
+  }, []);
+
+  // Check authentication state on mount and subscribe to changes
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      
+      if (!isMountedRef.current) return;
+      
+      setUser(authUser);
+      console.log('[CreateWizard] Auth state checked:', authUser ? 'logged in' : 'logged out');
+    };
+
+    checkAuth();
+
+    // Subscribe to auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!isMountedRef.current) return;
+      
+      console.log('[CreateWizard] Auth state changed:', event, session ? 'logged in' : 'logged out');
+      setUser(session?.user ?? null);
+    });
+
+    return () => {
+      subscription.unsubscribe();
     };
   }, []);
 
@@ -203,14 +230,102 @@ export function CreateWizard() {
     }
   };
 
+  // Helper function to check if error is a schema cache error
+  const isSchemaCacheError = (error: any): boolean => {
+    if (!error) return false;
+    const errorMessage = error.message || error.toString() || '';
+    const errorCode = error.code || '';
+    
+    return (
+      errorMessage.includes('schema cache') ||
+      errorMessage.includes('Could not find the table') ||
+      errorCode === 'PGRST116' || // PostgREST schema cache error
+      errorCode === '42P01' // PostgreSQL undefined_table error
+    );
+  };
+
+  // Helper function to retry operation with exponential backoff
+  const retryWithBackoff = async <T,>(
+    operation: () => Promise<T>,
+    maxRetries: number = 3,
+    baseDelay: number = 1000
+  ): Promise<T> => {
+    let lastError: any;
+    
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        return await operation();
+      } catch (error: any) {
+        lastError = error;
+        
+        // Only retry on schema cache errors
+        if (!isSchemaCacheError(error) || attempt === maxRetries) {
+          throw error;
+        }
+        
+        const delay = baseDelay * Math.pow(2, attempt);
+        console.warn(`[createEventWithData] Schema cache error on attempt ${attempt + 1}/${maxRetries + 1}, retrying in ${delay}ms...`, {
+          error: error.message,
+          code: error.code,
+          details: error.details,
+          hint: error.hint,
+        });
+        
+        // Wait before retrying
+        await new Promise(resolve => setTimeout(resolve, delay));
+        
+        // Try to refresh session/auth before retry
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session) {
+            console.log('[createEventWithData] Session refreshed before retry');
+          }
+        } catch (authError) {
+          console.warn('[createEventWithData] Failed to refresh session:', authError);
+        }
+      }
+    }
+    
+    throw lastError;
+  };
+
   // Core event creation logic - can be called with current state or restored state
   const createEventWithData = async (eventData: typeof state, userId: string): Promise<string | null> => {
-    if (!eventData.template || !eventData.dateRange) return null;
+    if (!eventData.template || !eventData.dateRange) {
+      console.error('[createEventWithData] Missing required data:', {
+        hasTemplate: !!eventData.template,
+        hasDateRange: !!eventData.dateRange,
+      });
+      return null;
+    }
 
-    // Create event
-    const { data: event, error: eventError } = await supabase
-      .from("events")
-      .insert({
+    console.log('[createEventWithData] Starting event creation', {
+      userId,
+      eventName: eventData.eventName,
+      template: eventData.template.id,
+      hasLocation: !!eventData.locationText,
+    });
+
+    // Verify Supabase connection
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('No active session');
+      }
+      console.log('[createEventWithData] Supabase connection verified, session active');
+    } catch (connectionError: any) {
+      console.error('[createEventWithData] Supabase connection check failed:', {
+        error: connectionError.message,
+        code: connectionError.code,
+      });
+      throw new Error('Database connection failed. Please try again.');
+    }
+
+    // Create event with retry logic
+    const event = await retryWithBackoff(async () => {
+      console.log('[createEventWithData] Inserting event into database...');
+      
+      const eventPayload = {
         organiser_id: userId,
         title: eventData.eventName,
         description: eventData.aiDescription,
@@ -222,77 +337,144 @@ export function CreateWizard() {
           template: eventData.template.id,
           placeId: eventData.location?.placeId || null,
         },
-      })
-      .select()
-      .single();
+      };
+      
+      console.log('[createEventWithData] Event payload:', {
+        ...eventPayload,
+        settings: eventPayload.settings,
+      });
 
-    if (eventError) throw eventError;
+      const { data: event, error: eventError } = await supabase
+        .from("events")
+        .insert(eventPayload)
+        .select()
+        .single();
+
+      if (eventError) {
+        console.error('[createEventWithData] Event insert error:', {
+          message: eventError.message,
+          code: eventError.code,
+          details: eventError.details,
+          hint: eventError.hint,
+          fullError: eventError,
+        });
+        throw eventError;
+      }
+
+      if (!event) {
+        throw new Error('Event creation returned no data');
+      }
+
+      console.log('[createEventWithData] Event created successfully:', event.id);
+      return event;
+    });
 
     // Generate and create blocks
-    const blocks = generateBlocks(
-      eventData.template,
-      eventData.dateRange.start,
-      eventData.dateRange.end
-    );
-
-    if (blocks.length > 0) {
-      const { error: blocksError } = await supabase.from("blocks").insert(
-        blocks.map((block, index) => ({
-          event_id: event.id,
-          name: block.name,
-          start_time: block.startTime.toISOString(),
-          end_time: block.endTime.toISOString(),
-          order_index: index,
-        }))
+    try {
+      const blocks = generateBlocks(
+        eventData.template,
+        eventData.dateRange.start,
+        eventData.dateRange.end
       );
-      if (blocksError) throw blocksError;
+
+      if (blocks.length > 0) {
+        console.log(`[createEventWithData] Creating ${blocks.length} blocks...`);
+        const { error: blocksError } = await supabase.from("blocks").insert(
+          blocks.map((block, index) => ({
+            event_id: event.id,
+            name: block.name,
+            start_time: block.startTime.toISOString(),
+            end_time: block.endTime.toISOString(),
+            order_index: index,
+          }))
+        );
+        if (blocksError) {
+          console.error('[createEventWithData] Blocks insert error:', blocksError);
+          throw blocksError;
+        }
+        console.log('[createEventWithData] Blocks created successfully');
+      }
+    } catch (error: any) {
+      console.error('[createEventWithData] Failed to create blocks:', error);
+      throw error;
     }
 
     // Create questions from template
-    if (eventData.template.questions.length > 0) {
-      const { error: questionsError } = await supabase.from("questions").insert(
-        eventData.template.questions.map((q, index) => ({
-          event_id: event.id,
-          type: q.type,
-          prompt: q.prompt,
-          options: q.options || null,
-          required: q.required ?? true,
-          order_index: index,
-        }))
-      );
-      if (questionsError) throw questionsError;
+    try {
+      if (eventData.template.questions.length > 0) {
+        console.log(`[createEventWithData] Creating ${eventData.template.questions.length} questions...`);
+        const { error: questionsError } = await supabase.from("questions").insert(
+          eventData.template.questions.map((q, index) => ({
+            event_id: event.id,
+            type: q.type,
+            prompt: q.prompt,
+            options: q.options || null,
+            required: q.required ?? true,
+            order_index: index,
+          }))
+        );
+        if (questionsError) {
+          console.error('[createEventWithData] Questions insert error:', questionsError);
+          throw questionsError;
+        }
+        console.log('[createEventWithData] Questions created successfully');
+      }
+    } catch (error: any) {
+      console.error('[createEventWithData] Failed to create questions:', error);
+      throw error;
     }
 
     // Generate and create checkpoints
-    const checkpoints = generateCheckpoints(eventData.template, eventData.dateRange.start);
-    if (checkpoints.length > 0) {
-      const { error: checkpointsError } = await supabase.from("checkpoints").insert(
-        checkpoints.map((cp) => ({
-          event_id: event.id,
-          trigger_at: cp.triggerAt.toISOString(),
-          type: cp.type,
-          message: `Reminder: ${cp.name}`,
-        }))
-      );
-      if (checkpointsError) throw checkpointsError;
+    try {
+      const checkpoints = generateCheckpoints(eventData.template, eventData.dateRange.start);
+      if (checkpoints.length > 0) {
+        console.log(`[createEventWithData] Creating ${checkpoints.length} checkpoints...`);
+        const { error: checkpointsError } = await supabase.from("checkpoints").insert(
+          checkpoints.map((cp) => ({
+            event_id: event.id,
+            trigger_at: cp.triggerAt.toISOString(),
+            type: cp.type,
+            message: `Reminder: ${cp.name}`,
+          }))
+        );
+        if (checkpointsError) {
+          console.error('[createEventWithData] Checkpoints insert error:', checkpointsError);
+          throw checkpointsError;
+        }
+        console.log('[createEventWithData] Checkpoints created successfully');
+      }
+    } catch (error: any) {
+      console.error('[createEventWithData] Failed to create checkpoints:', error);
+      throw error;
     }
 
     // Create guests if any
-    if (eventData.guests.length > 0) {
-      const guestRecords = eventData.guests.map((g) => {
-        // Check if it's a phone number or a name
-        const isPhone = /^[+\d\s()-]+$/.test(g);
-        return {
-          event_id: event.id,
-          name: isPhone ? 'Guest' : g,
-          phone: isPhone ? g.replace(/\s/g, '') : null,
-        };
-      });
+    try {
+      if (eventData.guests.length > 0) {
+        console.log(`[createEventWithData] Creating ${eventData.guests.length} guests...`);
+        const guestRecords = eventData.guests.map((g) => {
+          // Check if it's a phone number or a name
+          const isPhone = /^[+\d\s()-]+$/.test(g);
+          return {
+            event_id: event.id,
+            name: isPhone ? 'Guest' : g,
+            phone: isPhone ? g.replace(/\s/g, '') : null,
+          };
+        });
 
-      const { error: guestsError } = await supabase.from("guests").insert(guestRecords);
-      if (guestsError) throw guestsError;
+        const { error: guestsError } = await supabase.from("guests").insert(guestRecords);
+        if (guestsError) {
+          console.error('[createEventWithData] Guests insert error:', guestsError);
+          throw guestsError;
+        }
+        console.log('[createEventWithData] Guests created successfully');
+      }
+    } catch (error: any) {
+      console.error('[createEventWithData] Failed to create guests:', error);
+      throw error;
     }
 
+    console.log('[createEventWithData] Event creation completed successfully:', event.id);
     return event.id;
   };
 
@@ -319,8 +501,23 @@ export function CreateWizard() {
         navigate(`/events/${eventId}`);
       }
     } catch (error: any) {
-      console.error("Error creating event:", error);
-      setError(error.message || "Failed to create event. Please try again.");
+      console.error("[handleCreateEventWithState] Error creating event:", {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+        fullError: error,
+      });
+      
+      // Provide user-friendly error messages
+      let userMessage = "Failed to create event. Please try again.";
+      if (isSchemaCacheError(error)) {
+        userMessage = "Database connection issue. Please refresh and try again.";
+      } else if (error.message) {
+        userMessage = error.message;
+      }
+      
+      setError(userMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -330,9 +527,16 @@ export function CreateWizard() {
     if (!state.template || !state.dateRange) return;
 
     setIsSubmitting(true);
+    setError(null);
+    
     try {
       // Get current user
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
+      if (userError) {
+        console.error("[handleCreateEvent] Error getting user:", userError);
+        throw new Error("Authentication error. Please sign in again.");
+      }
       
       if (!user) {
         // Save wizard state before redirecting to auth
@@ -343,6 +547,7 @@ export function CreateWizard() {
         return;
       }
 
+      console.log("[handleCreateEvent] Creating event for user:", user.id);
       const eventId = await createEventWithData(state, user.id);
       
       if (eventId) {
@@ -352,10 +557,27 @@ export function CreateWizard() {
 
         // Navigate to the specific event page
         navigate(`/events/${eventId}`);
+      } else {
+        throw new Error("Event creation returned no ID");
       }
     } catch (error: any) {
-      console.error("Error creating event:", error);
-      setError(error.message || "Failed to create event. Please try again.");
+      console.error("[handleCreateEvent] Error creating event:", {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+        fullError: error,
+      });
+      
+      // Provide user-friendly error messages
+      let userMessage = "Failed to create event. Please try again.";
+      if (isSchemaCacheError(error)) {
+        userMessage = "Database connection issue. Please refresh the page and try again.";
+      } else if (error.message) {
+        userMessage = error.message;
+      }
+      
+      setError(userMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -369,6 +591,11 @@ export function CreateWizard() {
     } else {
       goBack();
     }
+  };
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    navigate('/');
   };
 
   const renderStep = () => {
@@ -475,12 +702,33 @@ export function CreateWizard() {
           </button>
           
           <div className="flex items-center gap-4">
-            <Link 
-              to="/auth" 
-              className="text-sm text-primary hover:text-primary/80 transition-colors"
-            >
-              Sign in
-            </Link>
+            {user ? (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => navigate('/profile')}
+                  className="p-2 rounded-full text-muted-foreground hover:text-primary
+                    hover:bg-primary/10 transition-colors"
+                  title="Profile"
+                >
+                  <User className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={handleSignOut}
+                  className="p-2 rounded-full text-muted-foreground hover:text-foreground
+                    hover:bg-muted transition-colors"
+                  title="Sign out"
+                >
+                  <LogOut className="w-5 h-5" />
+                </button>
+              </div>
+            ) : (
+              <Link 
+                to="/auth" 
+                className="text-sm text-primary hover:text-primary/80 transition-colors"
+              >
+                Sign in
+              </Link>
+            )}
             <span className="text-sm text-muted-foreground">
               {currentStepIndex + 1} of {steps.length}
             </span>

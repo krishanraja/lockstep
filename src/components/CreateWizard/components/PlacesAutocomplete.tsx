@@ -31,18 +31,31 @@ export function PlacesAutocomplete({
   const [isLoading, setIsLoading] = useState(true);
   const [isFocused, setIsFocused] = useState(false);
   const [googleAvailable, setGoogleAvailable] = useState(false);
+  const [mapLoading, setMapLoading] = useState(false);
+  const [mapError, setMapError] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
     
     const init = async () => {
       try {
+        const apiKey = import.meta.env.VITE_GOOGLE_PLACES_API_KEY;
+        if (!apiKey) {
+          console.warn('[PlacesAutocomplete] Google Places API key not configured. Map features will be limited.');
+        } else {
+          console.log('[PlacesAutocomplete] Google Places API key configured');
+        }
+        
         await loadGoogleMapsAPI();
         if (isMounted) {
-          setGoogleAvailable(isGoogleMapsAvailable());
+          const available = isGoogleMapsAvailable();
+          setGoogleAvailable(available);
+          if (!available) {
+            console.warn('[PlacesAutocomplete] Google Maps API not available after loading');
+          }
         }
       } catch (err) {
-        console.warn('Google Maps API not available:', err);
+        console.warn('[PlacesAutocomplete] Google Maps API not available:', err);
       } finally {
         if (isMounted) {
           setIsLoading(false);
@@ -116,35 +129,79 @@ export function PlacesAutocomplete({
 
       {/* Map preview */}
       <AnimatePresence>
-        {location && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.3 }}
-            className="mt-4 overflow-hidden"
-          >
-            <div className="h-32 rounded-xl overflow-hidden bg-card border border-border/50">
-              <img
-                src={getStaticMapUrl(location.lat, location.lng, { 
-                  width: 400, 
-                  height: 200,
-                  style: 'dark'
-                })}
-                alt={`Map of ${location.name}`}
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  // Fallback to placeholder on error
-                  e.currentTarget.src = 'https://via.placeholder.com/400x200/1a1a2e/5B6CFF?text=Map';
-                }}
-              />
-            </div>
-            <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
-              <MapPin className="w-4 h-4" />
-              <span className="truncate">{location.formattedAddress}</span>
-            </div>
-          </motion.div>
-        )}
+        {location && (() => {
+          // Validate coordinates before rendering map
+          const hasValidCoordinates = 
+            typeof location.lat === 'number' && 
+            typeof location.lng === 'number' &&
+            !isNaN(location.lat) && 
+            !isNaN(location.lng) &&
+            location.lat >= -90 && location.lat <= 90 &&
+            location.lng >= -180 && location.lng <= 180;
+
+          if (!hasValidCoordinates) {
+            console.warn('[PlacesAutocomplete] Invalid coordinates for map:', { lat: location.lat, lng: location.lng });
+          }
+
+          return (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3 }}
+              className="mt-4 overflow-hidden"
+            >
+              <div className="h-32 rounded-xl overflow-hidden bg-card border border-border/50 relative">
+                {hasValidCoordinates ? (
+                  <>
+                    {mapLoading && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-muted/50">
+                        <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" />
+                      </div>
+                    )}
+                    <img
+                      src={getStaticMapUrl(location.lat, location.lng, { 
+                        width: 400, 
+                        height: 200,
+                        style: 'dark'
+                      })}
+                      alt={`Map of ${location.name || location.formattedAddress}`}
+                      className="w-full h-full object-cover"
+                      onLoad={() => {
+                        setMapLoading(false);
+                        setMapError(false);
+                      }}
+                      onError={(e) => {
+                        console.error('[PlacesAutocomplete] Map image failed to load');
+                        setMapLoading(false);
+                        setMapError(true);
+                        // Fallback to placeholder on error
+                        e.currentTarget.src = 'https://via.placeholder.com/400x200/1a1a2e/5B6CFF?text=Map+Unavailable';
+                      }}
+                      onLoadStart={() => {
+                        setMapLoading(true);
+                        setMapError(false);
+                      }}
+                    />
+                    {mapError && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-muted/80">
+                        <p className="text-xs text-muted-foreground">Map unavailable</p>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-muted/50">
+                    <p className="text-xs text-muted-foreground">Map unavailable</p>
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
+                <MapPin className="w-4 h-4" />
+                <span className="truncate">{location.formattedAddress}</span>
+              </div>
+            </motion.div>
+          );
+        })()}
       </AnimatePresence>
 
       {/* AI Suggestions */}
