@@ -79,3 +79,4 @@ CREATE POLICY "Anyone can view stripe products"
 ON public.stripe_products FOR SELECT 
 USING (true);
 
+

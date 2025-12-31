@@ -378,3 +378,4 @@ function FaqItem({ question, answer }: { question: string; answer: string }) {
 
 export default Pricing;
 
+
