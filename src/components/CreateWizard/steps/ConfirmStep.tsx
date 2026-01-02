@@ -158,12 +158,15 @@ export function ConfirmStep({
             hover:text-foreground transition-colors"
         >
           <Settings className="w-4 h-4" />
-          Customize
+          Edit Details
         </button>
       </motion.div>
     </div>
   );
 }
+
+
+
 
 
 

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, MapPin, Loader2 } from 'lucide-react';
 import type { GooglePlaceResult } from '@/data/templates/types';
@@ -6,7 +6,8 @@ import {
   loadGoogleMapsAPI, 
   isGoogleMapsAvailable, 
   initAutocomplete,
-  getStaticMapUrl 
+  getStaticMapUrl,
+  geocodeAddress 
 } from '@/services/places';
 
 interface PlacesAutocompleteProps {
@@ -33,6 +34,8 @@ export function PlacesAutocomplete({
   const [googleAvailable, setGoogleAvailable] = useState(false);
   const [mapLoading, setMapLoading] = useState(false);
   const [mapError, setMapError] = useState(false);
+  const [isGeocoding, setIsGeocoding] = useState(false);
+  const geocodeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -88,18 +91,72 @@ export function PlacesAutocomplete({
     };
   }, [googleAvailable, onLocationSelect, onValueChange]);
 
+  // Geocode address when user has entered text but no coordinates
+  const tryGeocodeAddress = useCallback(async (address: string) => {
+    if (!address.trim() || !googleAvailable) return;
+    
+    // Don't geocode if we already have valid coordinates for this address
+    if (location && location.formattedAddress === address) return;
+    
+    console.log('[PlacesAutocomplete] Attempting to geocode:', address);
+    setIsGeocoding(true);
+    
+    try {
+      const result = await geocodeAddress(address);
+      if (result) {
+        console.log('[PlacesAutocomplete] Geocoding successful:', result);
+        onLocationSelect(result, result.formattedAddress);
+      } else {
+        console.warn('[PlacesAutocomplete] Geocoding returned no results for:', address);
+      }
+    } catch (err) {
+      console.error('[PlacesAutocomplete] Geocoding failed:', err);
+    } finally {
+      setIsGeocoding(false);
+    }
+  }, [googleAvailable, location, onLocationSelect]);
+
   const handleSuggestionClick = (suggestion: string) => {
     onValueChange(suggestion);
-    onLocationSelect(null, suggestion);
+    // Trigger geocoding for the suggestion to get coordinates
+    tryGeocodeAddress(suggestion);
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    onValueChange(e.target.value);
+    const newValue = e.target.value;
+    onValueChange(newValue);
+    
+    // Clear any pending geocode
+    if (geocodeTimeoutRef.current) {
+      clearTimeout(geocodeTimeoutRef.current);
+    }
+    
     // Clear location when user types (unless Google autocomplete handles it)
     if (!googleAvailable) {
-      onLocationSelect(null, e.target.value);
+      onLocationSelect(null, newValue);
     }
   };
+
+  const handleInputBlur = useCallback(() => {
+    setIsFocused(false);
+    
+    // If user has entered text but we don't have coordinates, try geocoding
+    if (value.trim() && (!location || !location.lat || !location.lng)) {
+      // Small delay to allow Google autocomplete selection to process first
+      geocodeTimeoutRef.current = setTimeout(() => {
+        tryGeocodeAddress(value);
+      }, 300);
+    }
+  }, [value, location, tryGeocodeAddress]);
+
+  // Cleanup geocode timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (geocodeTimeoutRef.current) {
+        clearTimeout(geocodeTimeoutRef.current);
+      }
+    };
+  }, []);
 
   return (
     <div className="w-full">
@@ -109,7 +166,7 @@ export function PlacesAutocomplete({
         bg-card border transition-colors duration-200
         ${isFocused ? 'border-primary' : 'border-border/50'}
       `}>
-        {isLoading ? (
+        {isLoading || isGeocoding ? (
           <Loader2 className="w-5 h-5 text-muted-foreground animate-spin flex-shrink-0" />
         ) : (
           <Search className="w-5 h-5 text-muted-foreground flex-shrink-0" />
@@ -120,7 +177,7 @@ export function PlacesAutocomplete({
           value={value}
           onChange={handleInputChange}
           onFocus={() => setIsFocused(true)}
-          onBlur={() => setIsFocused(false)}
+          onBlur={handleInputBlur}
           placeholder={placeholder}
           className="flex-1 bg-transparent outline-none text-foreground placeholder:text-muted-foreground/50"
           autoComplete="off"

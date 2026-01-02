@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Send, Users, Clock, X, Loader2, UserPlus } from 'lucide-react';
+import { Send, Users, Clock, X, Loader2, UserPlus, RefreshCw, AlertCircle } from 'lucide-react';
 
 // Contact Picker API types (not yet in standard TypeScript lib)
 interface ContactAddress {
@@ -43,6 +43,9 @@ interface GuestsStepProps {
   onSendInvites: () => void;
   onSkip: () => void;
   isSubmitting: boolean;
+  error?: string | null;
+  canRetry?: boolean;
+  onRetry?: () => void;
 }
 
 // Check if Contact Picker API is available
@@ -65,6 +68,9 @@ export function GuestsStep({
   onSendInvites,
   onSkip,
   isSubmitting,
+  error,
+  canRetry,
+  onRetry,
 }: GuestsStepProps) {
   const [inputValue, setInputValue] = useState('');
   const [isImporting, setIsImporting] = useState(false);
@@ -285,6 +291,36 @@ John Smith"
         )}
       </motion.div>
 
+      {/* Error message with retry */}
+      {error && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="max-w-sm mx-auto w-full mb-4"
+        >
+          <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/20">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 text-destructive mt-0.5 flex-shrink-0" />
+              <div className="flex-1">
+                <p className="text-sm text-destructive">{error}</p>
+                {canRetry && onRetry && (
+                  <button
+                    onClick={onRetry}
+                    disabled={isSubmitting}
+                    className="mt-2 flex items-center gap-1.5 text-xs font-medium
+                      text-destructive hover:text-destructive/80 transition-colors
+                      disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <RefreshCw className={`w-3 h-3 ${isSubmitting ? 'animate-spin' : ''}`} />
+                    Try again
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
       {/* Action buttons */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -292,45 +328,71 @@ John Smith"
         transition={{ duration: 0.4, delay: 0.3 }}
         className="pt-6 max-w-sm mx-auto w-full space-y-3"
       >
-        <button
-          onClick={onSendInvites}
-          disabled={isSubmitting}
-          className="w-full py-4 rounded-2xl
-            bg-primary text-primary-foreground font-medium
-            flex items-center justify-center gap-2
-            disabled:opacity-50 disabled:cursor-not-allowed
-            hover:opacity-90 transition-opacity"
-        >
-          {isSubmitting ? (
-            <>
-              <motion.div
-                animate={{ rotate: 360 }}
-                transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-              >
-                <Clock className="w-5 h-5" />
-              </motion.div>
-              Creating Event...
-            </>
-          ) : (
-            <>
-              {guestCount > 0 ? 'Create Event' : 'Create Event'}
-              <Send className="w-5 h-5" />
-            </>
-          )}
-        </button>
+        {/* Show Create Event button only when there are guests */}
+        {guestCount > 0 && (
+          <button
+            onClick={onSendInvites}
+            disabled={isSubmitting}
+            className="w-full py-4 rounded-2xl
+              bg-primary text-primary-foreground font-medium
+              flex items-center justify-center gap-2
+              disabled:opacity-50 disabled:cursor-not-allowed
+              hover:opacity-90 transition-opacity"
+          >
+            {isSubmitting ? (
+              <>
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                >
+                  <Clock className="w-5 h-5" />
+                </motion.div>
+                Creating Event...
+              </>
+            ) : (
+              <>
+                Create Event
+                <Send className="w-5 h-5" />
+              </>
+            )}
+          </button>
+        )}
         
+        {/* Skip for now - always visible when no guests, becomes primary action */}
         {guestCount === 0 && (
           <button
             onClick={onSkip}
             disabled={isSubmitting}
-            className="w-full py-3 rounded-2xl
-              bg-transparent text-muted-foreground font-medium
+            className="w-full py-4 rounded-2xl
+              bg-primary text-primary-foreground font-medium
               flex items-center justify-center gap-2
-              hover:text-foreground transition-colors
-              disabled:opacity-50"
+              hover:opacity-90 transition-opacity
+              disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Skip for now
+            {isSubmitting ? (
+              <>
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                >
+                  <Clock className="w-5 h-5" />
+                </motion.div>
+                Creating Event...
+              </>
+            ) : (
+              <>
+                Create Event
+                <Send className="w-5 h-5" />
+              </>
+            )}
           </button>
+        )}
+        
+        {/* Add guests later hint when no guests */}
+        {guestCount === 0 && !isSubmitting && (
+          <p className="text-xs text-muted-foreground text-center">
+            You can add guests later from the event page
+          </p>
         )}
       </motion.div>
     </div>

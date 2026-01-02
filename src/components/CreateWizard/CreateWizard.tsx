@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, User, LogOut } from 'lucide-react';
+import { ChevronLeft, User, LogOut, RefreshCw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   useWizardState, 
@@ -24,6 +24,7 @@ export function CreateWizard() {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [canRetry, setCanRetry] = useState(false);
   const [user, setUser] = useState<any>(null);
   
   const {
@@ -39,6 +40,7 @@ export function CreateWizard() {
     setGuests,
     goNext,
     goBack,
+    goToStep,
     restoreState,
   } = useWizardState();
   
@@ -244,11 +246,17 @@ export function CreateWizard() {
     );
   };
 
-  // Helper function to retry operation with exponential backoff
+  // Helper function to add jitter to delay (prevents thundering herd)
+  const addJitter = (delay: number, jitterFactor: number = 0.3): number => {
+    const jitter = delay * jitterFactor * (Math.random() * 2 - 1);
+    return Math.max(0, delay + jitter);
+  };
+
+  // Helper function to retry operation with exponential backoff and jitter
   const retryWithBackoff = async <T,>(
     operation: () => Promise<T>,
-    maxRetries: number = 3,
-    baseDelay: number = 1000
+    maxRetries: number = 5, // Increased from 3 to 5
+    baseDelay: number = 1500 // Increased base delay
   ): Promise<T> => {
     let lastError: any;
     
@@ -258,13 +266,21 @@ export function CreateWizard() {
       } catch (error: any) {
         lastError = error;
         
-        // Only retry on schema cache errors
-        if (!isSchemaCacheError(error) || attempt === maxRetries) {
+        // Only retry on schema cache errors or connection errors
+        const isRetryable = isSchemaCacheError(error) || 
+          error.message?.includes('fetch failed') ||
+          error.message?.includes('network') ||
+          error.code === 'NETWORK_ERROR';
+        
+        if (!isRetryable || attempt === maxRetries) {
           throw error;
         }
         
-        const delay = baseDelay * Math.pow(2, attempt);
-        console.warn(`[createEventWithData] Schema cache error on attempt ${attempt + 1}/${maxRetries + 1}, retrying in ${delay}ms...`, {
+        // Exponential backoff with jitter
+        const baseBackoff = baseDelay * Math.pow(2, attempt);
+        const delay = addJitter(baseBackoff);
+        
+        console.warn(`[createEventWithData] Retryable error on attempt ${attempt + 1}/${maxRetries + 1}, retrying in ${Math.round(delay)}ms...`, {
           error: error.message,
           code: error.code,
           details: error.details,
@@ -528,6 +544,7 @@ export function CreateWizard() {
 
     setIsSubmitting(true);
     setError(null);
+    setCanRetry(false);
     
     try {
       // Get current user
@@ -554,6 +571,7 @@ export function CreateWizard() {
         // Clear any saved state
         clearWizardState();
         setError(null);
+        setCanRetry(false);
 
         // Navigate to the specific event page
         navigate(`/events/${eventId}`);
@@ -569,10 +587,19 @@ export function CreateWizard() {
         fullError: error,
       });
       
+      // Check if this error is retryable
+      const isRetryable = isSchemaCacheError(error) || 
+        error.message?.includes('fetch failed') ||
+        error.message?.includes('network') ||
+        error.message?.includes('Database connection') ||
+        error.code === 'NETWORK_ERROR';
+      
+      setCanRetry(isRetryable);
+      
       // Provide user-friendly error messages
       let userMessage = "Failed to create event. Please try again.";
       if (isSchemaCacheError(error)) {
-        userMessage = "Database connection issue. Please refresh the page and try again.";
+        userMessage = "Database connection issue. Please try again or refresh the page.";
       } else if (error.message) {
         userMessage = error.message;
       }
@@ -651,7 +678,8 @@ export function CreateWizard() {
             isGeneratingDescription={state.isGeneratingDescription}
             onRegenerateDescription={handleGenerateDescription}
             onCustomize={() => {
-              // TODO: Open customization modal
+              // Navigate back to host step to allow editing all details
+              goToStep('host');
             }}
             onConfirm={goNext}
           />
@@ -665,6 +693,9 @@ export function CreateWizard() {
             onSendInvites={handleCreateEvent}
             onSkip={handleCreateEvent}
             isSubmitting={isSubmitting}
+            error={error}
+            canRetry={canRetry}
+            onRetry={handleCreateEvent}
           />
         );
       default:
@@ -736,10 +767,25 @@ export function CreateWizard() {
         </div>
       </header>
 
-      {/* Error message */}
+      {/* Error message with retry option */}
       {error && (
         <div className="px-4 py-2 bg-destructive/10 border-t border-destructive/20">
-          <p className="text-sm text-destructive">{error}</p>
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm text-destructive flex-1">{error}</p>
+            {canRetry && (
+              <button
+                onClick={handleCreateEvent}
+                disabled={isSubmitting}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg
+                  bg-destructive/20 text-destructive text-sm font-medium
+                  hover:bg-destructive/30 transition-colors
+                  disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isSubmitting ? 'animate-spin' : ''}`} />
+                Retry
+              </button>
+            )}
+          </div>
         </div>
       )}
 
