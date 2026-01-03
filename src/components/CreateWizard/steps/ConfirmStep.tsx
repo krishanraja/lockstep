@@ -85,24 +85,25 @@ export function ConfirmStep({
   };
 
   return (
-    <div className="h-full flex flex-col px-6 py-8">
-      {/* Header with check */}
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.4 }}
-        className="text-center mb-6"
-      >
-        <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-          <Check className="w-6 h-6 text-primary" />
-        </div>
-        <h1 className="text-xl md:text-2xl font-display font-bold text-foreground">
-          {eventName}
-        </h1>
-        <p className="text-muted-foreground text-sm mt-1">
-          {locationText} • {formatDateRange()}
-        </p>
-      </motion.div>
+    <div className="h-full flex flex-col overflow-y-auto">
+      <div className="flex-1 px-6 py-8 pb-32">
+        {/* Header with check */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.4 }}
+          className="text-center mb-6"
+        >
+          <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+            <Check className="w-6 h-6 text-primary" />
+          </div>
+          <h1 className="text-xl md:text-2xl font-display font-bold text-foreground">
+            {eventName}
+          </h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            {locationText} • {formatDateRange()}
+          </p>
+        </motion.div>
 
       {/* Cover Photo */}
       <motion.div
@@ -221,42 +222,40 @@ export function ConfirmStep({
           </span>
           <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
         </button>
-      </motion.div>
+        </motion.div>
 
-      {/* Spacer */}
-      <div className="flex-1" />
-
-      {/* Action buttons */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, delay: 0.3 }}
-        className="pt-6 max-w-sm mx-auto w-full space-y-3"
-      >
-        <button
-          onClick={onConfirm}
-          disabled={isGeneratingDescription}
-          className="w-full py-4 rounded-2xl
-            bg-primary text-primary-foreground font-medium
-            flex items-center justify-center gap-2
-            disabled:opacity-50 disabled:cursor-not-allowed
-            hover:opacity-90 transition-opacity"
+        {/* Action buttons */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.3 }}
+          className="pt-6 max-w-sm mx-auto w-full space-y-3"
         >
-          Looks Good
-          <Check className="w-5 h-5" />
-        </button>
-        
-        <button
-          onClick={onCustomize}
-          className="w-full py-3 rounded-2xl
-            bg-transparent text-muted-foreground font-medium
-            flex items-center justify-center gap-2
-            hover:text-foreground transition-colors"
-        >
-          <Settings className="w-4 h-4" />
-          Edit Event
-        </button>
-      </motion.div>
+          <button
+            onClick={onConfirm}
+            disabled={isGeneratingDescription}
+            className="w-full py-4 rounded-2xl
+              bg-primary text-primary-foreground font-medium
+              flex items-center justify-center gap-2
+              disabled:opacity-50 disabled:cursor-not-allowed
+              hover:opacity-90 transition-opacity"
+          >
+            Looks Good
+            <Check className="w-5 h-5" />
+          </button>
+          
+          <button
+            onClick={onCustomize}
+            className="w-full py-3 rounded-2xl
+              bg-transparent text-muted-foreground font-medium
+              flex items-center justify-center gap-2
+              hover:text-foreground transition-colors"
+          >
+            <Settings className="w-4 h-4" />
+            Edit Event
+          </button>
+        </motion.div>
+      </div>
 
       {/* Edit Modals */}
       <EditTimeBlocksModal

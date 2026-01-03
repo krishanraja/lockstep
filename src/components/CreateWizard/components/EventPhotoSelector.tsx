@@ -45,20 +45,58 @@ export function EventPhotoSelector({
     setError(null);
     
     try {
+      console.log('[EventPhotoSelector] Invoking fetch-pexels with query:', searchQuery);
+      
       const { data, error: fnError } = await supabase.functions.invoke('fetch-pexels', {
         body: { query: searchQuery, per_page: 12 },
       });
       
-      if (fnError) throw fnError;
+      console.log('[EventPhotoSelector] Response:', { data, error: fnError });
+      
+      if (fnError) {
+        console.error('[EventPhotoSelector] Function error:', fnError);
+        // Provide more specific error messages based on error type
+        if (fnError.message?.includes('not configured')) {
+          setError('Photo search not configured. Please contact support.');
+        } else if (fnError.message?.includes('FunctionNotFound') || fnError.message?.includes('404')) {
+          setError('Photo search service unavailable. Please try again later.');
+        } else {
+          setError('Failed to search photos. Please try again.');
+        }
+        setPhotos([]);
+        return;
+      }
+      
+      // Check for API-level errors in the response
+      if (data?.error) {
+        console.error('[EventPhotoSelector] API error in response:', data.error);
+        if (data.error.includes('not configured')) {
+          setError('Photo search not configured. Please contact support.');
+        } else {
+          setError('Failed to search photos. Please try again.');
+        }
+        setPhotos([]);
+        return;
+      }
       
       if (data?.photos) {
+        console.log('[EventPhotoSelector] Found', data.photos.length, 'photos');
         setPhotos(data.photos);
       } else {
+        console.log('[EventPhotoSelector] No photos in response');
         setPhotos([]);
       }
     } catch (err: any) {
-      console.error('Pexels search error:', err);
-      setError('Failed to search photos. Please try again.');
+      console.error('[EventPhotoSelector] Exception:', err);
+      // Parse error for more helpful messages
+      const errorMessage = err?.message || String(err);
+      if (errorMessage.includes('NetworkError') || errorMessage.includes('fetch')) {
+        setError('Network error. Please check your connection.');
+      } else if (errorMessage.includes('timeout')) {
+        setError('Request timed out. Please try again.');
+      } else {
+        setError('Failed to search photos. Please try again.');
+      }
       setPhotos([]);
     } finally {
       setIsSearching(false);
@@ -327,4 +365,7 @@ export function EventPhotoSelector({
     </AnimatePresence>
   );
 }
+
+
+
 

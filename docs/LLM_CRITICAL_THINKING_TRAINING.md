@@ -48,13 +48,39 @@ Supabase Backend
 
 | Table | Purpose | Key Fields |
 |-------|---------|------------|
-| `events` | Event metadata | title, organiser_id, dates |
+| `events` | Event metadata | title, organiser_id, dates, cover_image |
 | `blocks` | Time blocks (activities) | name, start_time, end_time |
 | `guests` | Attendee list | name, email, phone, magic_token |
 | `rsvps` | Responses | guest_id, block_id, response |
 | `questions` | Custom questions | prompt, type, options |
 | `checkpoints` | Nudge schedule | trigger_at, type |
 | `nudges` | Sent messages | guest_id, channel, status |
+| `subscriptions` | User tier info | user_id, tier, stripe_customer_id |
+| `event_purchases` | Per-event upgrades | event_id, tier, status |
+
+### Key Pages
+
+| Route | File | Purpose |
+|-------|------|---------|
+| `/` | `Index.tsx` | Landing page |
+| `/auth` | `Auth.tsx` | Login/signup |
+| `/create` | `CreateEvent.tsx` | 6-step wizard |
+| `/dashboard` | `Dashboard.tsx` | Event list, AI summaries |
+| `/events/:id` | `EventDetail.tsx` | Single event view |
+| `/rsvp/:token` | `RSVPPage.tsx` | Guest RSVP experience |
+| `/pricing` | `Pricing.tsx` | Tier comparison, Stripe checkout |
+| `/profile` | `Profile.tsx` | User settings |
+
+### Edge Functions
+
+| Function | Purpose |
+|----------|---------|
+| `generate-description` | AI event descriptions (Gemini) |
+| `generate-summary` | AI summaries for organizers |
+| `send-nudge` | SMS/WhatsApp via Twilio |
+| `fetch-pexels` | Cover photo search |
+| `create-checkout-session` | Stripe checkout |
+| `stripe-webhook` | Payment processing |
 
 ### Security Model
 
@@ -292,11 +318,14 @@ When making changes, consider updating:
 
 | File | Purpose |
 |------|---------|
-| `src/App.tsx` | Route definitions |
+| `src/App.tsx` | Route definitions (lazy loading) |
 | `src/index.css` | CSS variables, global styles |
 | `tailwind.config.ts` | Tailwind customization |
 | `src/integrations/supabase/client.ts` | Supabase client (don't edit) |
 | `src/integrations/supabase/types.ts` | Generated types (don't edit) |
+| `src/services/subscription.ts` | Tier limits, Stripe checkout |
+| `src/hooks/use-wizard-state.ts` | CreateWizard state management |
+| `vercel.json` | Deployment configuration, CSP headers |
 
 ### Key Commands
 

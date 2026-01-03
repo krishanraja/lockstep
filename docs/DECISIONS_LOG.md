@@ -351,6 +351,110 @@ Option 4: Responsive web only. Guests access via browser; no app installation re
 
 ---
 
+## ADR-011: Conversational 6-Step Wizard
+
+**Date**: 2025-01-02
+**Status**: Accepted
+
+### Context
+
+The original 5-step wizard was comprehensive but felt complex on mobile. Users hesitated at the multi-field forms. We needed a flow that felt faster and more engaging.
+
+### Options Considered
+
+1. **Keep 5-step wizard**: Simplify each step
+2. **Single-page form**: All fields on one screen
+3. **Conversational wizard**: One question per screen, 6 focused steps
+
+### Decision
+
+Option 3: Conversational 6-step wizard. Each step asks one clear question, uses the full screen, and animates smoothly between steps.
+
+### Consequences
+
+**Positive**:
+- Feels faster despite more screens
+- Better mobile experience (one-hand operation)
+- Clearer mental model for users
+- Easier to add AI assistance per step
+
+**Negative**:
+- More components to maintain
+- More animation code
+- Template blocks now auto-generated instead of user-defined
+
+---
+
+## ADR-012: Per-Event Pricing Model
+
+**Date**: 2025-01-02
+**Status**: Accepted
+
+### Context
+
+Need to monetize the platform. Most RSVP tools use subscription models, but our users organize events infrequently.
+
+### Options Considered
+
+1. **Monthly subscription**: $9-29/month unlimited events
+2. **Per-event pricing**: $19-99 per event
+3. **Freemium + add-ons**: Free base, pay for features
+4. **Hybrid**: Annual subscription OR per-event
+
+### Decision
+
+Option 4: Hybrid model. Users can pay per-event ($29-99) or subscribe annually ($149) for unlimited events. Free tier with limits for trial.
+
+### Consequences
+
+**Positive**:
+- Matches user behavior (infrequent events)
+- Low barrier to first paid event
+- Annual option for power users
+- Clear upgrade path
+
+**Negative**:
+- More pricing complexity
+- Need to track per-event purchases
+- Stripe integration complexity
+
+---
+
+## ADR-013: Google AI (Gemini) as Primary LLM
+
+**Date**: 2024-12-28
+**Status**: Accepted
+
+### Context
+
+Need LLM for event descriptions, summaries, and nudge copy. Multiple providers available.
+
+### Options Considered
+
+1. **OpenAI only**: GPT-4/4o
+2. **Anthropic**: Claude
+3. **Google AI**: Gemini
+4. **Multi-provider**: Primary + fallback
+
+### Decision
+
+Option 4: Google AI (Gemini 2.5 Flash) as primary with OpenAI as fallback. Gemini is fast, cost-effective, and good for structured output.
+
+### Consequences
+
+**Positive**:
+- Lower cost than GPT-4
+- Fast response times
+- Good at following JSON schemas
+- Fallback ensures reliability
+
+**Negative**:
+- Two APIs to maintain
+- Slightly different prompting styles
+- Google AI API still maturing
+
+---
+
 ## Template for New Decisions
 
 ```markdown

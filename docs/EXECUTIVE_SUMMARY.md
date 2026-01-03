@@ -36,11 +36,16 @@ Lockstep introduces **block-based RSVPs**—guests respond to individual time bl
 
 - ✅ Core platform architecture complete
 - ✅ Database schema and RLS policies implemented
-- ✅ Event creation wizard functional
+- ✅ 6-step conversational event creation wizard
 - ✅ Landing page with interactive demos
-- 🔄 Guest RSVP experience in progress
-- 🔄 Nudge automation system in progress
-- 📋 Dashboard analytics planned
+- ✅ Guest RSVP experience (magic link, block-based responses)
+- ✅ Organizer dashboard with AI-powered summaries
+- ✅ Nudge system (SMS/WhatsApp via Twilio)
+- ✅ Stripe integration (per-event pricing, subscriptions)
+- ✅ Production deployment on Vercel
+- 🔄 Guest management UI improvements in progress
+- 📋 CSV export/import planned
+- 📋 Analytics dashboard planned
 
 ## Success Metrics
 

@@ -228,12 +228,10 @@ export function PlacesAutocomplete({
                         setMapLoading(false);
                         setMapError(false);
                       }}
-                      onError={(e) => {
+                      onError={() => {
                         console.error('[PlacesAutocomplete] Map image failed to load');
                         setMapLoading(false);
                         setMapError(true);
-                        // Fallback to placeholder on error
-                        e.currentTarget.src = 'https://via.placeholder.com/400x200/1a1a2e/5B6CFF?text=Map+Unavailable';
                       }}
                       onLoadStart={() => {
                         setMapLoading(true);

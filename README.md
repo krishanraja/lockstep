@@ -1,73 +1,137 @@
-# Welcome to your Lovable project
+# Lockstep
 
-## Project info
+**RSVPs in sync** — Block-by-block RSVPs for events that deserve more than "yes" or "no."
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/your-repo/lockstep)
 
-## How can I edit this code?
+---
 
-There are several ways of editing your application.
+## What is Lockstep?
 
-**Use Lovable**
+Lockstep is a modern RSVP and event coordination platform designed to eliminate the chaos of multi-day, multi-activity events. Unlike traditional RSVP tools that only capture a simple "yes" or "no", Lockstep lets guests respond to each activity separately.
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+**Perfect for:**
+- 💒 Wedding weekends (ceremony, reception, brunch)
+- 🎉 Bachelor/bachelorette parties (multi-day, multiple activities)
+- 🏢 Corporate retreats (breakout sessions, dinners)
+- 🎂 Milestone birthdays (dinner, party, after-party)
+- ✈️ Group trips (ski weekends, beach houses)
 
-Changes made via Lovable will be committed automatically to this repo.
+## Key Features
 
-**Use your preferred IDE**
+| Feature | Description |
+|---------|-------------|
+| 🧱 **Block-based RSVPs** | Guests respond to each time block separately |
+| ✨ **Magic link auth** | Zero friction—no passwords, no accounts for guests |
+| 🤖 **AI summaries** | Instant insights from guest responses |
+| 📱 **Mobile-first** | Designed for thumbs, works beautifully on phones |
+| 📨 **Smart nudges** | SMS, WhatsApp, and email reminders |
+| 📊 **Real-time dashboard** | Watch responses come in live |
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## Tech Stack
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+- **Frontend**: React 18, TypeScript, Vite
+- **Styling**: Tailwind CSS, shadcn/ui, Framer Motion
+- **Backend**: Supabase (PostgreSQL, Auth, Edge Functions)
+- **Messaging**: Twilio (SMS/WhatsApp), Resend (Email)
+- **AI**: Google AI (Gemini), OpenAI (GPT)
+- **Deployment**: Vercel
 
-Follow these steps:
+## Quick Start
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+```bash
+# Clone the repository
+git clone https://github.com/your-repo/lockstep.git
+cd lockstep
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+# Install dependencies
+npm install
 
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Start development server
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+The app will be available at `http://localhost:8080`.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## Project Structure
 
-**Use GitHub Codespaces**
+```
+lockstep/
+├── src/
+│   ├── components/       # React components
+│   │   ├── ui/           # shadcn/ui primitives
+│   │   ├── CreateWizard/ # 6-step event creation wizard
+│   │   └── animations/   # Framer Motion components
+│   ├── hooks/            # Custom React hooks
+│   ├── pages/            # Route pages
+│   ├── services/         # API & business logic
+│   ├── integrations/     # Supabase client & types
+│   └── lib/              # Utilities
+├── supabase/
+│   ├── functions/        # Edge Functions (Deno)
+│   └── migrations/       # Database migrations
+├── docs/                 # Comprehensive documentation
+└── public/               # Static assets
+```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## Available Scripts
 
-## What technologies are used for this project?
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start development server |
+| `npm run build` | Production build |
+| `npm run build:dev` | Development build |
+| `npm run preview` | Preview production build |
+| `npm run lint` | Run ESLint |
 
-This project is built with:
+## Documentation
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+Comprehensive documentation is available in the `/docs` folder:
 
-## How can I deploy this project?
+| Document | Description |
+|----------|-------------|
+| [README](./docs/README.md) | Documentation index |
+| [ARCHITECTURE](./docs/ARCHITECTURE.md) | System design & tech stack |
+| [FEATURES](./docs/FEATURES.md) | Feature documentation |
+| [ROADMAP](./docs/ROADMAP.md) | Complete product roadmap |
+| [DEPLOYMENT](./docs/DEPLOYMENT.md) | Deployment guide |
+| [COMMON_ISSUES](./docs/COMMON_ISSUES.md) | Troubleshooting |
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+## Environment Variables
 
-## Can I connect a custom domain to my Lovable project?
+### Frontend (Vite)
 
-Yes, you can!
+| Variable | Description |
+|----------|-------------|
+| `VITE_SUPABASE_URL` | Supabase project URL |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | Supabase anon key |
+| `VITE_GOOGLE_PLACES_API_KEY` | Google Places API key |
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+### Backend (Supabase Edge Functions)
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+| Secret | Description |
+|--------|-------------|
+| `GOOGLE_AI_API_KEY` | Google AI (Gemini) API key |
+| `OPENAI_API_KEY` | OpenAI API key (fallback) |
+| `TWILIO_ACCOUNT_SID` | Twilio Account SID |
+| `TWILIO_API_SECRET` | Twilio API Secret |
+| `RESEND_API_KEY` | Resend email API key |
+| `PEXELS_API_KEY` | Pexels API for cover photos |
+
+See [ENV_VARIABLES.md](./docs/ENV_VARIABLES.md) for complete setup instructions.
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## License
+
+This project is proprietary software. All rights reserved.
+
+---
+
+**Built with ❤️ for event organizers who deserve better than group chat chaos.**

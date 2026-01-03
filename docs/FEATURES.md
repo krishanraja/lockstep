@@ -4,28 +4,33 @@
 
 ### 1. Event Creation Wizard
 
-**Status**: ✅ Implemented
+**Status**: ✅ Implemented (6-Step Conversational)
 
-Multi-step flow for creating events:
+Redesigned conversational flow optimized for mobile:
 
 | Step | Name | Description |
 |------|------|-------------|
-| 1 | Basics | Event title, description, dates, location, timezone |
-| 2 | Blocks | Define time blocks (activities) with start/end times |
-| 3 | Questions | Add custom questions (text, select, multi-select) |
-| 4 | Guests | Import guest list with names, emails, phone numbers |
-| 5 | Review | Preview and publish event |
+| 1 | Event Type | Choose event type (Bucks, Hens, Wedding, Birthday, etc.) |
+| 2 | Host Name | Enter organizer name |
+| 3 | Date | Weekend picker with visual calendar |
+| 4 | Location | Google Places autocomplete for venue |
+| 5 | Guests | Phone number input with country codes |
+| 6 | Confirm | Review with AI-generated description & cover photo |
 
 **Technical Details**:
-- Components in `src/components/EventWizard/`
-- State managed locally, persisted to Supabase on completion
-- Supports drag-and-drop reordering for blocks and questions
+- Components in `src/components/CreateWizard/`
+- Steps in `src/components/CreateWizard/steps/`
+- State managed via `use-wizard-state.ts` hook
+- Framer Motion transitions between steps
+- AI description generation via `generate-description` Edge Function
+- Cover photo search via `fetch-pexels` Edge Function
+- Persisted to Supabase on completion
 
 ---
 
 ### 2. Block-Based RSVPs
 
-**Status**: 🔄 In Progress
+**Status**: ✅ Implemented
 
 Guests respond to individual time blocks, not just the overall event.
 
@@ -71,7 +76,7 @@ Guests receive unique links—no passwords required.
 
 ### 4. Organizer Dashboard
 
-**Status**: 📋 Planned
+**Status**: ✅ Implemented
 
 Real-time visibility into event status.
 
@@ -91,7 +96,7 @@ Real-time visibility into event status.
 
 ### 5. Smart Nudges
 
-**Status**: 🔄 In Progress
+**Status**: ✅ Implemented (Edge Function)
 
 Automated reminders via SMS, email, and WhatsApp.
 
@@ -146,7 +151,7 @@ questions (
 
 ### 7. AI-Powered Summaries
 
-**Status**: 📋 Planned
+**Status**: ✅ Implemented (Gemini Integration)
 
 LLM-generated insights from responses.
 
@@ -198,22 +203,68 @@ Consistent animations via Framer Motion:
 
 ---
 
+## Recently Implemented Features
+
+### 11. Pricing & Subscriptions
+
+**Status**: ✅ Implemented
+
+Tiered pricing with Stripe integration:
+
+| Tier | Price | Guests | Nudges |
+|------|-------|--------|--------|
+| Free | $0 | 15 | 3 |
+| Pro | $29/event | 75 | 20 |
+| Wedding | $49/event | 150 | Unlimited |
+| Business | $99/event | 200 | Unlimited |
+| Annual Pro | $149/year | 75 | 20 (Unlimited events) |
+
+**Implementation**:
+- `Pricing.tsx` page with tier comparison
+- `subscription.ts` service for limit checking
+- `create-checkout-session` Edge Function
+- `stripe-webhook` Edge Function
+
+### 12. Cover Photos
+
+**Status**: ✅ Implemented
+
+AI-suggested cover photos for events via Pexels API.
+
+**Features**:
+- Automatic photo search based on event type
+- Manual search override
+- Photo preview and selection
+
+### 13. Google Places Integration
+
+**Status**: ✅ Implemented
+
+Location autocomplete for event creation.
+
+**Features**:
+- Address autocomplete
+- Place details (formatted address)
+- Works on mobile keyboards
+
+---
+
 ## Planned Features
 
-### 11. Guest Portal
-Full RSVP experience for guests with magic link access.
+### 14. Guest Portal
+Full guest management interface with response tracking.
 
-### 12. Email Templates
-Branded invitation and reminder emails.
+### 15. Email Templates
+Branded invitation and reminder emails via Resend.
 
-### 13. Export/Import
+### 16. Export/Import
 CSV export of responses, CSV import of guests.
 
-### 14. Event Templates
-Pre-built templates for common event types.
-
-### 15. Collaborative Organizing
+### 17. Collaborative Organizing
 Multiple organizers per event with role-based permissions.
 
-### 16. Analytics
+### 18. Analytics Dashboard
 Response time trends, channel effectiveness, conversion funnels.
+
+### 19. Inbound Message Handling
+STOP/HELP message processing via Twilio webhooks.

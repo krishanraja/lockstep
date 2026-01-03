@@ -150,18 +150,29 @@ Create `src/pages/Index.tsx`:
 
 #### 5.2 Event Creation Wizard
 
-Create multi-step form:
-- `EventBasicsStep.tsx`
-- `EventBlocksStep.tsx`
-- `EventQuestionsStep.tsx`
-- `EventGuestsStep.tsx`
-- `EventReviewStep.tsx`
+Create conversational 6-step wizard in `src/components/CreateWizard/`:
 
-#### 5.3 Dashboard (Future)
+| Step | Component | Purpose |
+|------|-----------|---------|
+| 1 | `EventTypeStep.tsx` | Choose event type (visual cards) |
+| 2 | `HostNameStep.tsx` | Organizer name input |
+| 3 | `DateStep.tsx` | Weekend picker calendar |
+| 4 | `LocationStep.tsx` | Google Places autocomplete |
+| 5 | `GuestsStep.tsx` | Phone number input |
+| 6 | `ConfirmStep.tsx` | AI description, cover photo, submit |
 
-- Event list view
-- Per-event analytics
-- Response management
+**Key patterns**:
+- One question per screen
+- Framer Motion transitions
+- `use-wizard-state.ts` hook for state management
+- AI assistance via Edge Functions
+
+#### 5.3 Dashboard
+
+- Event list with cards
+- AI-generated summaries
+- Response statistics
+- Nudge controls
 
 ### Phase 6: Guest Experience
 
@@ -253,8 +264,17 @@ Audit and fix:
 | Directory | Purpose |
 |-----------|---------|
 | `src/components/ui/` | shadcn components |
-| `src/components/EventWizard/` | Event creation |
+| `src/components/CreateWizard/` | 6-step event wizard |
+| `src/components/CreateWizard/steps/` | Individual wizard steps |
 | `src/components/animations/` | Animation helpers |
+
+### Services
+
+| File | Purpose |
+|------|---------|
+| `src/services/subscription.ts` | Tier limits, Stripe checkout |
+| `src/services/llm/` | AI integration utilities |
+| `src/services/places/` | Google Places API |
 
 ### Integration
 
@@ -262,6 +282,17 @@ Audit and fix:
 |------|---------|
 | `src/integrations/supabase/client.ts` | Supabase client |
 | `src/integrations/supabase/types.ts` | Generated types |
+
+### Edge Functions
+
+| Directory | Purpose |
+|-----------|---------|
+| `supabase/functions/generate-description/` | AI event descriptions |
+| `supabase/functions/generate-summary/` | AI organizer summaries |
+| `supabase/functions/send-nudge/` | SMS/WhatsApp sending |
+| `supabase/functions/fetch-pexels/` | Cover photo search |
+| `supabase/functions/create-checkout-session/` | Stripe checkout |
+| `supabase/functions/stripe-webhook/` | Payment processing |
 
 ---
 

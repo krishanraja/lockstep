@@ -47,12 +47,15 @@ serve(async (req: Request) => {
     const PEXELS_API_KEY = Deno.env.get('PEXELS_API_KEY');
     
     if (!PEXELS_API_KEY) {
-      console.error('PEXELS_API_KEY not configured');
+      console.error('[fetch-pexels] CRITICAL: PEXELS_API_KEY not configured in Supabase Edge Function Secrets');
+      console.error('[fetch-pexels] To fix: Go to Supabase Dashboard -> Edge Functions -> Secrets -> Add PEXELS_API_KEY');
       return new Response(
-        JSON.stringify({ error: 'Pexels API not configured' }),
+        JSON.stringify({ error: 'Photo search not configured. PEXELS_API_KEY missing from Edge Function Secrets.' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+    
+    console.log('[fetch-pexels] API key configured (length:', PEXELS_API_KEY.length, ')');
 
     const body: RequestBody = await req.json();
     const { query, per_page = 12, page = 1 } = body;
@@ -122,4 +125,7 @@ serve(async (req: Request) => {
     );
   }
 });
+
+
+
 

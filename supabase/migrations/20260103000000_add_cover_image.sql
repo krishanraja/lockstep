@@ -8,3 +8,6 @@ ADD COLUMN IF NOT EXISTS cover_image_url TEXT;
 -- Add comment for documentation
 COMMENT ON COLUMN public.events.cover_image_url IS 'URL of the event cover image (from Pexels or user upload)';
 
+
+
+

@@ -12,7 +12,7 @@ Lockstep uses a modern JAMstack architecture with:
 
 | Environment | URL | Branch | Purpose |
 |-------------|-----|--------|---------|
-| Production | `lockstep.app` | `main` | Live users |
+| Production | `inlockstep.ai` | `main` | Live users |
 | Preview | PR-specific URLs | Feature branches | PR review |
 | Development | `localhost:8080` | Local | Development |
 
@@ -224,7 +224,7 @@ Recommended:
 ### Vercel
 
 1. Go to Vercel Project Settings → Domains
-2. Add your domain (e.g., `lockstep.app`)
+2. Add your domain (e.g., `inlockstep.ai`)
 3. Configure DNS as instructed:
    - `A` record → Vercel IP
    - `CNAME` for www → `cname.vercel-dns.com`
@@ -237,3 +237,8 @@ Type    Name    Value
 A       @       76.76.21.21
 CNAME   www     cname.vercel-dns.com
 ```
+
+### Current Configuration
+
+- **Production**: `inlockstep.ai`
+- **Supabase Site URL**: `https://inlockstep.ai` (set in Dashboard → Authentication → URL Configuration)

@@ -1595,7 +1595,9 @@ const sendableGuests = guests.filter(g => g.status !== 'opted_out');
 - [ ] Summary caching
 
 ### Phase 6: Launch (Weeks 11-12)
-- [ ] Stripe integration
+- [x] Stripe integration (Checkout + Webhooks)
+- [x] Pricing page with tier comparison
+- [x] Profile page with account settings
 - [ ] Shareable final plan page
 - [ ] CSV export
 - [ ] Bug fixes and polish
@@ -1615,8 +1617,10 @@ const sendableGuests = guests.filter(g => g.status !== 'opted_out');
 | RSVPPage | P0 | ✅ Built (with positive bias) |
 | DashboardPage | P0 | ✅ Built (with AI insights) |
 | EventDetailPage | P1 | ✅ Built |
-| GuestManagerPage | P1 | 🔜 Planned |
-| PublicPlanPage | P1 | 🔜 Planned |
+| PricingPage | P1 | ✅ Built (Stripe integration) |
+| ProfilePage | P1 | ✅ Built (account settings) |
+| GuestManagerPage | P2 | 🔜 Planned |
+| PublicPlanPage | P2 | 🔜 Planned |
 
 ### UI Components
 | Component | Priority | Status |
@@ -1626,25 +1630,31 @@ const sendableGuests = guests.filter(g => g.status !== 'opted_out');
 | Input | P0 | ✅ Built |
 | SegmentedControl | P0 | ✅ Built (in RSVP) |
 | BlockCard | P0 | ✅ Built |
-| TimeRangeSlider | P0 | 🔜 Planned |
-| CheckpointTimeline | P1 | 🔜 Planned |
-| HeatmapGrid | P1 | 🔜 Planned |
 | OpenLoopsList | P0 | ✅ Built |
 | StepperWizard | P0 | ✅ Built |
-| PlacesAutocomplete | P1 | ✅ Built |
+| PlacesAutocomplete | P0 | ✅ Built (Google Places) |
 | EventTypeCard | P0 | ✅ Built |
 | WeekendPicker | P0 | ✅ Built |
-| AIGeneratedCard | P1 | ✅ Built |
+| AIGeneratedCard | P0 | ✅ Built |
+| CoverPhotoSelector | P1 | ✅ Built (Pexels API) |
+| PhoneInput | P0 | ✅ Built (Country codes) |
+| UsageIndicator | P1 | ✅ Built (Tier limits) |
+| UpgradeModal | P1 | ✅ Built (Stripe checkout) |
+| TimeRangeSlider | P2 | 🔜 Planned |
+| CheckpointTimeline | P2 | 🔜 Planned |
+| HeatmapGrid | P2 | 🔜 Planned |
 
 ### Edge Functions
 | Function | Priority | Status |
 |----------|----------|--------|
-| generate-description | P0 | ✅ Built |
-| generate-summary | P0 | ✅ Built |
-| send-nudge | P0 | ✅ Built |
-| process-checkpoint | P0 | 🔜 Planned |
-| webhook-twilio | P1 | 🔜 Planned |
-| stripe-webhook | P2 | 🔜 Planned |
+| generate-description | P0 | ✅ Built (Google AI / Gemini) |
+| generate-summary | P0 | ✅ Built (Organizer insights) |
+| send-nudge | P0 | ✅ Built (Twilio SMS/WhatsApp) |
+| fetch-pexels | P1 | ✅ Built (Cover photos) |
+| create-checkout-session | P0 | ✅ Built (Stripe Checkout) |
+| stripe-webhook | P0 | ✅ Built (Payment callbacks) |
+| process-checkpoint | P1 | 🔜 Planned (Automated nudges) |
+| webhook-twilio | P2 | 🔜 Planned (Inbound messages) |
 
 ### Event Templates
 | Template | Status |
@@ -1664,8 +1674,8 @@ const sendableGuests = guests.filter(g => g.status !== 'opted_out');
 
 ### Magic Token URL Format
 ```
-Production: https://lockstep.app/rsvp/{32-char-hex-token}
-Staging: https://staging.lockstep.app/rsvp/{token}
+Production: https://inlockstep.ai/rsvp/{32-char-hex-token}
+Development: http://localhost:8080/rsvp/{token}
 ```
 
 ### Default Checkpoint Template (Bucks Weekend)

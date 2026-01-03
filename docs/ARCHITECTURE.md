@@ -64,24 +64,47 @@
 src/
 ├── components/
 │   ├── ui/              # shadcn/ui components (button, card, etc.)
-│   ├── EventWizard/     # Multi-step event creation
+│   ├── CreateWizard/    # 6-step conversational event wizard
+│   │   ├── steps/       # Individual wizard steps
+│   │   │   ├── EventTypeStep.tsx
+│   │   │   ├── HostNameStep.tsx
+│   │   │   ├── DateStep.tsx
+│   │   │   ├── LocationStep.tsx
+│   │   │   ├── GuestsStep.tsx
+│   │   │   └── ConfirmStep.tsx
+│   │   ├── components/  # Wizard sub-components
+│   │   └── CreateWizard.tsx
+│   ├── EventWizard/     # Legacy wizard (deprecated)
 │   ├── animations/      # Reveal, KineticText, etc.
 │   ├── Hero.tsx         # Landing page hero
 │   ├── Features.tsx     # Feature grid
 │   ├── RSVPDemo.tsx     # Interactive demo
-│   └── SlideController.tsx
+│   ├── UpgradeModal.tsx # Stripe checkout modal
+│   └── UsageIndicator.tsx
 │
 ├── hooks/
 │   ├── use-auto-play.ts        # Carousel auto-advance
 │   ├── use-swipe.ts            # Touch gestures
 │   ├── use-transition-feedback.ts  # Sound/haptics
-│   └── use-mobile.tsx          # Responsive detection
+│   ├── use-mobile.tsx          # Responsive detection
+│   ├── use-wizard-state.ts     # CreateWizard state management
+│   └── use-scroll-animations.ts
 │
 ├── pages/
 │   ├── Index.tsx        # Landing page
 │   ├── Auth.tsx         # Login/signup
 │   ├── CreateEvent.tsx  # Event wizard
+│   ├── Dashboard.tsx    # Organizer dashboard
+│   ├── EventDetail.tsx  # Single event view
+│   ├── RSVPPage.tsx     # Guest RSVP experience
+│   ├── Pricing.tsx      # Pricing tiers
+│   ├── Profile.tsx      # User profile
 │   └── NotFound.tsx     # 404
+│
+├── services/
+│   ├── subscription.ts  # Tier limits, Stripe checkout
+│   ├── llm/             # AI integration utilities
+│   └── places/          # Google Places API
 │
 ├── integrations/
 │   └── supabase/
@@ -193,9 +216,12 @@ const { play, pause, isPlaying } = useAutoPlay(goNext, 6000);
 
 | Function | Trigger | Purpose |
 |----------|---------|---------|
-| `send-nudge` | Scheduled / Manual | Send SMS/email reminders |
-| `generate-summary` | On demand | Create AI summary of responses |
-| `process-webhook` | Incoming | Handle Twilio/Resend webhooks |
+| `generate-description` | Event creation | AI-generated event descriptions (Gemini) |
+| `generate-summary` | On demand | AI summary of responses for organizers |
+| `send-nudge` | Manual / Scheduled | Send SMS/WhatsApp via Twilio |
+| `fetch-pexels` | Event creation | Cover photo search |
+| `create-checkout-session` | Upgrade flow | Create Stripe Checkout session |
+| `stripe-webhook` | Incoming | Process Stripe payment events |
 
 ---
 
@@ -203,12 +229,19 @@ const { play, pause, isPlaying } = useAutoPlay(goNext, 6000);
 
 ### Event Creation Flow
 ```
-User Input → EventWizard → Local State → Supabase Insert → 
-  → events table
-  → blocks table (multiple)
-  → questions table (multiple)
-  → guests table (multiple)
-  → Trigger: generate magic_tokens
+User Input → CreateWizard (6 steps) → Local State →
+  Step 1: Event Type Selection
+  Step 2: Host Name
+  Step 3: Date (Weekend Picker)
+  Step 4: Location (Google Places)
+  Step 5: Guests (Phone Numbers)
+  Step 6: Confirm (AI Description + Cover Photo)
+    → generate-description Edge Function
+    → fetch-pexels Edge Function
+    → Supabase Insert →
+      → events table
+      → blocks table (auto-generated from template)
+      → guests table (with magic_tokens)
 ```
 
 ### Guest RSVP Flow

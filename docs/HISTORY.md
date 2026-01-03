@@ -66,7 +66,7 @@ A mobile-first RSVP platform where:
 - Dark/light mode support via CSS variables
 - Subtle animations that respect reduced motion preferences
 
-### Week 1: Event Creation Flow
+### Week 1: Event Creation Flow (Original)
 
 **Accomplishments**:
 - Multi-step wizard implemented:
@@ -89,11 +89,6 @@ A mobile-first RSVP platform where:
 - Email/password authentication
 - Auto-confirm enabled for development
 
-**Pending**:
-- Magic link auth for guests
-- Password reset flow
-- OAuth providers (Google, etc.)
-
 ### Week 1: Animation System
 
 **Accomplishments**:
@@ -104,71 +99,171 @@ A mobile-first RSVP platform where:
 
 ---
 
-## Phase 2: Core Features (Planned)
+## Phase 2: Core Features (December 2024 - January 2025)
 
 ### Guest RSVP Experience
 
-**Goals**:
-- Magic link landing page
-- Event details display
-- Block-by-block response UI
-- Custom question answers
-- Confirmation and updates
+**Accomplishments**:
+- Magic link landing page (`/rsvp/:token`)
+- Event details display with blocks
+- Block-by-block response UI (In/Maybe/Out)
+- Positive-bias RSVP design
+- Confirmation screen
+
+**Implementation**:
+- `RSVPPage.tsx` component
+- Token validation via Supabase RLS
+- Pre-filled responses for updates
 
 ### Organizer Dashboard
 
-**Goals**:
-- Event list/grid view
-- Per-event detail page
-- Response tracking (overall and per-block)
-- Guest management (add, edit, remove)
-- Nudge controls (send manually, configure automation)
+**Accomplishments**:
+- Event list view with cards
+- Per-event response tracking
+- AI-generated summaries via Edge Function
+- Guest count and response statistics
+- Real-time updates via Supabase Realtime
 
-### Nudge Automation
+**Implementation**:
+- `Dashboard.tsx` and `EventDetail.tsx` pages
+- TanStack Query for data fetching
+- AI insights panel with Gemini integration
 
-**Goals**:
-- Edge function for sending nudges
-- Twilio SMS integration
-- Resend email integration
-- Checkpoint scheduling
-- Delivery tracking
+### 6-Step Conversational Event Wizard
 
-### AI Summaries
+**Accomplishments**:
+- Complete redesign of event creation flow
+- Conversational, mobile-first interface
+- Six focused steps:
+  1. **EventTypeStep**: Choose event type (Bucks, Hens, Wedding, Birthday, Reunion, Trip, Team Offsite, Custom)
+  2. **HostNameStep**: Organizer name input
+  3. **DateStep**: Weekend picker with visual calendar
+  4. **LocationStep**: Google Places autocomplete integration
+  5. **GuestsStep**: Phone number input with country codes
+  6. **ConfirmStep**: Review & AI-generated event description
 
-**Goals**:
-- Edge function for LLM calls
-- Response aggregation
-- Natural language summaries
-- Dietary/logistics extraction
-- Action item suggestions
+**Technical Details**:
+- `src/components/CreateWizard/` component structure
+- `use-wizard-state.ts` hook for state management
+- Smooth Framer Motion transitions between steps
+- Cover photo search via Pexels API
+- AI description generation via Edge Function
+
+### Edge Functions
+
+**Accomplishments**:
+- `generate-description`: AI event description generation using Google AI (Gemini)
+- `generate-summary`: AI event summaries for organizers
+- `send-nudge`: SMS/WhatsApp sending via Twilio
+- `fetch-pexels`: Cover photo search
+- `create-checkout-session`: Stripe integration
+- `stripe-webhook`: Payment processing
+
+**Implementation**:
+- Deno runtime on Supabase Edge
+- CORS headers for browser access
+- Secrets management via Supabase Dashboard
+
+### Pricing & Subscriptions
+
+**Accomplishments**:
+- Pricing page with tier comparison
+- Stripe Checkout integration
+- Per-event pricing model:
+  - Free: 15 guests, 3 nudges
+  - Pro ($29): 75 guests, 20 nudges, AI summaries
+  - Wedding ($49): 150 guests, unlimited nudges
+  - Business ($99): 200 guests, team access, analytics
+  - Annual Pro ($149/year): Unlimited events
+
+**Implementation**:
+- `Pricing.tsx` page
+- `subscription.ts` service
+- `event_purchases` table for per-event upgrades
+
+### Profile Management
+
+**Accomplishments**:
+- User profile page
+- Account settings
+- Subscription management
+
+**Implementation**:
+- `Profile.tsx` page
+- Supabase Auth user data
 
 ---
 
-## Phase 3: Polish & Launch (Planned)
+## Phase 3: Polish & Deployment (January 2025)
+
+### Vercel Deployment
+
+**Accomplishments**:
+- Production deployment to Vercel
+- Custom domain configuration (`inlockstep.ai`)
+- Security headers (CSP, X-Frame-Options, etc.)
+- Asset caching with immutable headers
+- SPA routing configuration
+
+**Configuration**:
+- `vercel.json` with rewrites and headers
+- Stripe script CSP allowances
+- Google APIs and Supabase connectivity
+
+### Database Enhancements
+
+**Migrations Applied**:
+1. `20251225063926_initial_schema.sql` - Core tables
+2. `20251226140000_schema_enhancements.sql` - Additional fields
+3. `20251227000000_event_purchases.sql` - Billing tables
+4. `20260103000000_add_cover_image.sql` - Cover photo support
 
 ### Performance Optimization
 
-**Goals**:
-- Code splitting
-- Image optimization
-- Lazy loading
-- Caching strategies
+**Accomplishments**:
+- Code splitting with React.lazy for secondary pages
+- Eager loading for critical pages (Index, Auth, CreateEvent)
+- TanStack Query caching configuration
+- Loading states with spinner fallback
 
-### Accessibility Audit
+---
 
-**Goals**:
-- Keyboard navigation throughout
-- Screen reader testing
-- Color contrast verification
-- Focus management
+## Current State (January 2025)
 
-### Launch Preparation
+### Pages Implemented
 
-**Goals**:
-- Custom domain setup
-- Error monitoring (Sentry)
-- Analytics (privacy-respecting)
-- Documentation completion
+| Page | Route | Status |
+|------|-------|--------|
+| Landing | `/` | ✅ Complete |
+| Auth | `/auth` | ✅ Complete |
+| Create Event | `/create` | ✅ Complete (6-step wizard) |
+| Dashboard | `/dashboard` | ✅ Complete |
+| Event Detail | `/events/:id` | ✅ Complete |
+| RSVP | `/rsvp/:token` | ✅ Complete |
+| Pricing | `/pricing` | ✅ Complete |
+| Profile | `/profile` | ✅ Complete |
+| 404 | `*` | ✅ Complete |
+
+### Edge Functions Deployed
+
+| Function | Purpose | Status |
+|----------|---------|--------|
+| `generate-description` | AI event descriptions | ✅ Active |
+| `generate-summary` | AI organizer summaries | ✅ Active |
+| `send-nudge` | SMS/WhatsApp reminders | ✅ Active |
+| `fetch-pexels` | Cover photo search | ✅ Active |
+| `create-checkout-session` | Stripe checkout | ✅ Active |
+| `stripe-webhook` | Payment callbacks | ✅ Active |
+
+### Pending Features
+
+- [ ] Heatmap visualization for arrival/departure
+- [ ] Inbound message handling (STOP, HELP)
+- [ ] Status callbacks from Twilio
+- [ ] Escalation logic for nudges
+- [ ] Summary caching
+- [ ] CSV export
+- [ ] Guest manager UI improvements
 
 ---
 
@@ -177,15 +272,50 @@ A mobile-first RSVP platform where:
 | Version | Date | Highlights |
 |---------|------|------------|
 | 0.1.0 | 2024-12-25 | Initial foundation: DB schema, landing page, event wizard |
-| 0.2.0 | TBD | Guest RSVP experience |
-| 0.3.0 | TBD | Organizer dashboard |
-| 0.4.0 | TBD | Nudge automation |
-| 0.5.0 | TBD | AI summaries |
+| 0.2.0 | 2024-12-27 | Guest RSVP experience, dashboard |
+| 0.3.0 | 2024-12-30 | 6-step conversational wizard, AI integration |
+| 0.4.0 | 2025-01-02 | Stripe integration, pricing page, profile |
+| 0.5.0 | 2025-01-03 | Cover photos, Places autocomplete, polish |
 | 1.0.0 | TBD | Public launch |
 
 ---
 
 ## Changelog
+
+### 2025-01-03
+
+**Added**:
+- Cover photo support for events (via Pexels API)
+- Event type selection with visual cards
+- Weekend picker calendar component
+- Google Places autocomplete integration
+
+**Changed**:
+- Event creation wizard redesigned to 6 conversational steps
+- Improved mobile experience throughout
+
+### 2025-01-02
+
+**Added**:
+- Pricing page with tier comparison
+- Stripe Checkout integration
+- Profile page with account management
+- Per-event purchases database table
+
+### 2024-12-30
+
+**Added**:
+- AI-generated event descriptions
+- Conversational event wizard
+- Phone number input with country codes
+
+### 2024-12-27
+
+**Added**:
+- RSVP page for guests
+- Dashboard with event cards
+- Event detail page
+- AI summaries integration
 
 ### 2024-12-25
 
@@ -219,12 +349,15 @@ A mobile-first RSVP platform where:
 2. **Magic links**: Zero friction is a real differentiator
 3. **Animation polish**: First impressions matter for trust
 4. **RLS-first security**: Peace of mind during development
+5. **Conversational wizard**: 6 focused steps feel faster than 5 complex ones
+6. **AI integration**: Gemini works well for description/summary generation
 
 ### What Could Be Better
 
 1. **Scope management**: Easy to add "one more feature"
 2. **Mobile testing**: Need more device testing earlier
 3. **User feedback**: Should get real users testing sooner
+4. **Type safety**: Some edge cases with Supabase types
 
 ### Key Insights
 
@@ -232,11 +365,13 @@ A mobile-first RSVP platform where:
 2. Organizers will tolerate complexity if it saves time later
 3. Visual polish correlates with response rates (theory to test)
 4. SMS > email for reminder effectiveness
+5. AI-generated content saves significant time for organizers
+6. Per-event pricing better than subscription for casual users
 
 ---
 
 ## Contributors
 
-- **Product/Design**: [To be credited]
-- **Engineering**: Built with Lovable AI
-- **Documentation**: Comprehensive docs written alongside development
+- **Product/Design**: Krish
+- **Engineering**: Built with Lovable AI + Cursor AI
+- **Documentation**: Comprehensive docs maintained alongside development

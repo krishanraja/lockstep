@@ -102,7 +102,6 @@ Cannot find module '@/components/Something'
 2. Set **Site URL** to your production URL: `https://inlockstep.ai`
 3. Add to **Redirect URLs**:
    - `https://inlockstep.ai/**`
-   - `http://localhost:3000/**` (for local development)
    - `http://localhost:8080/**` (for local development)
 
 **Optional: Customize Email Templates**
@@ -408,6 +407,44 @@ useEffect(() => {
   return () => clearInterval(interval); // Cleanup!
 }, []);
 ```
+
+---
+
+## Stripe Integration Issues
+
+### Issue: Checkout session not creating
+
+**Symptoms**:
+- "Failed to create checkout session" error
+- Network request fails
+
+**Causes**:
+1. STRIPE_SECRET_KEY not set in Supabase secrets
+2. Price ID incorrect or not created in Stripe Dashboard
+3. CORS issues with Edge Function
+
+**Solutions**:
+1. Verify secret is set: Supabase Dashboard → Edge Functions → Secrets
+2. Create products/prices in Stripe Dashboard first
+3. Check Edge Function logs for detailed error
+
+---
+
+### Issue: Webhook not processing
+
+**Symptoms**:
+- Payment succeeds but subscription not activated
+- event_purchases row not created
+
+**Causes**:
+1. Webhook endpoint not configured in Stripe
+2. Webhook secret mismatch
+3. Edge Function error
+
+**Solutions**:
+1. Add webhook in Stripe Dashboard → Developers → Webhooks
+2. Set endpoint to: `https://<project>.supabase.co/functions/v1/stripe-webhook`
+3. Copy signing secret to Supabase secrets
 
 ---
 

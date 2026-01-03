@@ -15,9 +15,13 @@ export async function loadGoogleMapsAPI(): Promise<void> {
   const apiKey = import.meta.env.VITE_GOOGLE_PLACES_API_KEY;
   
   if (!apiKey) {
-    console.warn('Google Places API key not configured. Using fallback mode.');
+    console.error('[GooglePlaces] CRITICAL: VITE_GOOGLE_PLACES_API_KEY not configured');
+    console.error('[GooglePlaces] To fix: Add VITE_GOOGLE_PLACES_API_KEY to Vercel Environment Variables for Production');
+    console.warn('[GooglePlaces] Using fallback mode - maps will show "Map unavailable"');
     return;
   }
+  
+  console.log('[GooglePlaces] API key configured, loading Google Maps API...');
 
   loadingPromise = new Promise((resolve, reject) => {
     const script = document.createElement('script');
@@ -106,16 +110,16 @@ export function getStaticMapUrl(
     lng > 180
   ) {
     console.warn('[getStaticMapUrl] Invalid coordinates provided:', { lat, lng });
-    // Return placeholder for invalid coordinates
-    return `https://via.placeholder.com/${options?.width || 400}x${options?.height || 200}/1a1a2e/5B6CFF?text=Invalid+Location`;
+    // Return empty string to trigger error handler in component
+    return '';
   }
 
   const apiKey = import.meta.env.VITE_GOOGLE_PLACES_API_KEY;
   
   if (!apiKey) {
     console.warn('[getStaticMapUrl] Google Places API key not configured');
-    // Return a placeholder for development
-    return `https://via.placeholder.com/${options?.width || 400}x${options?.height || 200}/1a1a2e/5B6CFF?text=Map`;
+    // Return empty string to trigger error handler in component
+    return '';
   }
 
   const width = options?.width || 400;

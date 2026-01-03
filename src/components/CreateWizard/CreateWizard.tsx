@@ -872,7 +872,7 @@ export function CreateWizard() {
       )}
 
       {/* Step content */}
-      <main className="flex-1 overflow-hidden">
+      <main className="flex-1 overflow-y-auto">
         <AnimatePresence mode="wait">
           <motion.div
             key={state.step}
