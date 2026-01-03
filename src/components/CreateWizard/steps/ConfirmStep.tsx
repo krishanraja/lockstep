@@ -1,9 +1,12 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Check, RefreshCw, Calendar, MapPin, Users, Bell, Settings } from 'lucide-react';
+import { Check, RefreshCw, Calendar, Users, Bell, Settings, ChevronRight, Camera } from 'lucide-react';
 import { format } from 'date-fns';
-import type { EventTemplate } from '@/data/templates/types';
-import { supabase } from '@/integrations/supabase/client';
+import type { EventTemplate, BlockTemplate, CheckpointTemplate, QuestionTemplate } from '@/data/templates/types';
+import { EditTimeBlocksModal } from '../components/EditTimeBlocksModal';
+import { EditCheckpointsModal } from '../components/EditCheckpointsModal';
+import { EditQuestionsModal } from '../components/EditQuestionsModal';
+import { EventPhotoSelector } from '../components/EventPhotoSelector';
 
 interface ConfirmStepProps {
   template: EventTemplate;
@@ -15,6 +18,16 @@ interface ConfirmStepProps {
   onRegenerateDescription: () => void;
   onCustomize: () => void;
   onConfirm: () => void;
+  // Edit callbacks
+  customBlocks?: BlockTemplate[];
+  customCheckpoints?: CheckpointTemplate[];
+  customQuestions?: QuestionTemplate[];
+  onBlocksChange?: (blocks: BlockTemplate[]) => void;
+  onCheckpointsChange?: (checkpoints: CheckpointTemplate[]) => void;
+  onQuestionsChange?: (questions: QuestionTemplate[]) => void;
+  // Photo
+  coverImageUrl?: string;
+  onCoverImageChange?: (url: string) => void;
 }
 
 export function ConfirmStep({
@@ -27,7 +40,24 @@ export function ConfirmStep({
   onRegenerateDescription,
   onCustomize,
   onConfirm,
+  customBlocks,
+  customCheckpoints,
+  customQuestions,
+  onBlocksChange,
+  onCheckpointsChange,
+  onQuestionsChange,
+  coverImageUrl,
+  onCoverImageChange,
 }: ConfirmStepProps) {
+  const [showBlocksModal, setShowBlocksModal] = useState(false);
+  const [showCheckpointsModal, setShowCheckpointsModal] = useState(false);
+  const [showQuestionsModal, setShowQuestionsModal] = useState(false);
+  const [showPhotoSelector, setShowPhotoSelector] = useState(false);
+  
+  // Use custom values if provided, otherwise use template defaults
+  const blocks = customBlocks || template.blocks;
+  const checkpoints = customCheckpoints || template.checkpoints;
+  const questions = customQuestions || template.questions;
   
   // Generate description on mount if not already generated
   useEffect(() => {
@@ -40,6 +70,18 @@ export function ConfirmStep({
     const start = format(dateRange.start, 'MMM d');
     const end = format(dateRange.end, 'MMM d, yyyy');
     return `${start} - ${end}`;
+  };
+
+  const handleBlocksSave = (newBlocks: BlockTemplate[]) => {
+    onBlocksChange?.(newBlocks);
+  };
+
+  const handleCheckpointsSave = (newCheckpoints: CheckpointTemplate[]) => {
+    onCheckpointsChange?.(newCheckpoints);
+  };
+
+  const handleQuestionsSave = (newQuestions: QuestionTemplate[]) => {
+    onQuestionsChange?.(newQuestions);
   };
 
   return (
@@ -60,6 +102,42 @@ export function ConfirmStep({
         <p className="text-muted-foreground text-sm mt-1">
           {locationText} • {formatDateRange()}
         </p>
+      </motion.div>
+
+      {/* Cover Photo */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.05 }}
+        className="max-w-sm mx-auto w-full mb-4"
+      >
+        <button
+          onClick={() => setShowPhotoSelector(true)}
+          className="w-full aspect-[2.5/1] rounded-2xl overflow-hidden relative group"
+        >
+          {coverImageUrl ? (
+            <>
+              <img 
+                src={coverImageUrl} 
+                alt="Event cover" 
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 
+                transition-opacity flex items-center justify-center">
+                <Camera className="w-6 h-6 text-white" />
+              </div>
+            </>
+          ) : (
+            <div className="w-full h-full bg-gradient-to-br from-primary/20 to-primary/5 
+              border-2 border-dashed border-border/50 flex flex-col items-center justify-center gap-2
+              group-hover:border-primary/50 transition-colors">
+              <Camera className="w-6 h-6 text-muted-foreground group-hover:text-primary transition-colors" />
+              <span className="text-xs text-muted-foreground group-hover:text-primary transition-colors">
+                Add cover photo
+              </span>
+            </div>
+          )}
+        </button>
       </motion.div>
 
       {/* AI Description */}
@@ -92,39 +170,57 @@ export function ConfirmStep({
         </div>
       </motion.div>
 
-      {/* What's been set up */}
+      {/* What's been set up - Clickable items */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.2 }}
-        className="mt-6 max-w-sm mx-auto w-full space-y-3"
+        className="mt-6 max-w-sm mx-auto w-full space-y-2"
       >
-        <div className="flex items-center gap-3 text-sm">
+        {/* Time Blocks */}
+        <button
+          onClick={() => setShowBlocksModal(true)}
+          className="w-full flex items-center gap-3 p-3 rounded-xl bg-card/50 border border-border/30
+            hover:bg-card hover:border-border/50 transition-colors text-left group"
+        >
           <div className="w-8 h-8 rounded-full bg-confirmed/10 flex items-center justify-center">
             <Calendar className="w-4 h-4 text-confirmed" />
           </div>
-          <span className="text-foreground">
-            {template.blocks.length} time blocks set up
+          <span className="flex-1 text-sm text-foreground">
+            {blocks.length} time block{blocks.length !== 1 ? 's' : ''} set up
           </span>
-        </div>
+          <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+        </button>
         
-        <div className="flex items-center gap-3 text-sm">
+        {/* Checkpoints */}
+        <button
+          onClick={() => setShowCheckpointsModal(true)}
+          className="w-full flex items-center gap-3 p-3 rounded-xl bg-card/50 border border-border/30
+            hover:bg-card hover:border-border/50 transition-colors text-left group"
+        >
           <div className="w-8 h-8 rounded-full bg-confirmed/10 flex items-center justify-center">
             <Bell className="w-4 h-4 text-confirmed" />
           </div>
-          <span className="text-foreground">
-            {template.checkpoints.length} reminder checkpoints
+          <span className="flex-1 text-sm text-foreground">
+            {checkpoints.length} reminder checkpoint{checkpoints.length !== 1 ? 's' : ''}
           </span>
-        </div>
+          <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+        </button>
         
-        <div className="flex items-center gap-3 text-sm">
+        {/* Questions */}
+        <button
+          onClick={() => setShowQuestionsModal(true)}
+          className="w-full flex items-center gap-3 p-3 rounded-xl bg-card/50 border border-border/30
+            hover:bg-card hover:border-border/50 transition-colors text-left group"
+        >
           <div className="w-8 h-8 rounded-full bg-confirmed/10 flex items-center justify-center">
             <Users className="w-4 h-4 text-confirmed" />
           </div>
-          <span className="text-foreground">
-            {template.questions.length} questions for guests
+          <span className="flex-1 text-sm text-foreground">
+            {questions.length} question{questions.length !== 1 ? 's' : ''} for guests
           </span>
-        </div>
+          <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+        </button>
       </motion.div>
 
       {/* Spacer */}
@@ -158,19 +254,39 @@ export function ConfirmStep({
             hover:text-foreground transition-colors"
         >
           <Settings className="w-4 h-4" />
-          Edit Details
+          Edit Event
         </button>
       </motion.div>
+
+      {/* Edit Modals */}
+      <EditTimeBlocksModal
+        isOpen={showBlocksModal}
+        onClose={() => setShowBlocksModal(false)}
+        blocks={blocks}
+        onSave={handleBlocksSave}
+      />
+      
+      <EditCheckpointsModal
+        isOpen={showCheckpointsModal}
+        onClose={() => setShowCheckpointsModal(false)}
+        checkpoints={checkpoints}
+        onSave={handleCheckpointsSave}
+      />
+      
+      <EditQuestionsModal
+        isOpen={showQuestionsModal}
+        onClose={() => setShowQuestionsModal(false)}
+        questions={questions}
+        onSave={handleQuestionsSave}
+      />
+      
+      <EventPhotoSelector
+        isOpen={showPhotoSelector}
+        onClose={() => setShowPhotoSelector(false)}
+        onSelect={(url) => onCoverImageChange?.(url)}
+        currentImage={coverImageUrl}
+        eventType={template.label}
+      />
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
-

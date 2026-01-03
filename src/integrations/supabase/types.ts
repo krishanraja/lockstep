@@ -165,6 +165,7 @@ export type Database = {
           template: string | null
           place_id: string | null
           place_data: Json | null
+          cover_image_url: string | null
         }
         Insert: {
           created_at?: string | null
@@ -182,6 +183,7 @@ export type Database = {
           template?: string | null
           place_id?: string | null
           place_data?: Json | null
+          cover_image_url?: string | null
         }
         Update: {
           created_at?: string | null
@@ -199,6 +201,7 @@ export type Database = {
           template?: string | null
           place_id?: string | null
           place_data?: Json | null
+          cover_image_url?: string | null
         }
         Relationships: []
       }

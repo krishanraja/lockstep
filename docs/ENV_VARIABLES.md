@@ -22,6 +22,7 @@ These are configured in Supabase Dashboard > Edge Functions > Secrets:
 | `TWILIO_API_SECRET` | Twilio API Secret |
 | `RESEND_API_KEY` | Resend API key for email |
 | `STRIPE_SECRET_KEY` | Stripe secret key (add when going to production) |
+| `PEXELS_API_KEY` | Pexels API key for event cover photo search |
 
 ## Setup Instructions
 
@@ -43,6 +44,7 @@ These are configured in Supabase Dashboard > Edge Functions > Secrets:
 2. Enable Places API and Maps JavaScript API
 3. Create an API key with appropriate restrictions
 4. Add the key to Vercel as `VITE_GOOGLE_PLACES_API_KEY`
+
 
 
 

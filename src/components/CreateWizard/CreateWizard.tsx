@@ -11,6 +11,14 @@ import {
   hasPendingWizardState,
 } from '@/hooks/use-wizard-state';
 import { generateBlocks, generateCheckpoints, makePossessive } from '@/data/templates';
+import { 
+  withTimeout, 
+  withRetry, 
+  TimeoutError,
+  type OperationProgress,
+  progressMessages,
+  DEFAULT_RETRY_CONFIG,
+} from '@/lib/async-utils';
 
 // Steps
 import { EventTypeStep } from './steps/EventTypeStep';
@@ -20,12 +28,20 @@ import { LocationStep } from './steps/LocationStep';
 import { ConfirmStep } from './steps/ConfirmStep';
 import { GuestsStep } from './steps/GuestsStep';
 
+// Timeout constants (in milliseconds)
+const OPERATION_TIMEOUT = 10000; // 10 seconds per operation
+const SESSION_CHECK_TIMEOUT = 5000; // 5 seconds for session check
+
 export function CreateWizard() {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [progress, setProgress] = useState<OperationProgress>('idle');
   const [error, setError] = useState<string | null>(null);
   const [canRetry, setCanRetry] = useState(false);
   const [user, setUser] = useState<any>(null);
+  
+  // Abort controller for cancelling operations on unmount
+  const abortControllerRef = useRef<AbortController | null>(null);
   
   const {
     state,
@@ -38,6 +54,10 @@ export function CreateWizard() {
     setAIDescription,
     setGeneratingDescription,
     setGuests,
+    setCustomBlocks,
+    setCustomCheckpoints,
+    setCustomQuestions,
+    setCoverImageUrl,
     goNext,
     goBack,
     goToStep,
@@ -54,6 +74,11 @@ export function CreateWizard() {
     isMountedRef.current = true;
     return () => {
       isMountedRef.current = false;
+      // Abort any pending operations
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
     };
   }, []);
 
@@ -246,63 +271,12 @@ export function CreateWizard() {
     );
   };
 
-  // Helper function to add jitter to delay (prevents thundering herd)
-  const addJitter = (delay: number, jitterFactor: number = 0.3): number => {
-    const jitter = delay * jitterFactor * (Math.random() * 2 - 1);
-    return Math.max(0, delay + jitter);
-  };
-
-  // Helper function to retry operation with exponential backoff and jitter
-  const retryWithBackoff = async <T,>(
-    operation: () => Promise<T>,
-    maxRetries: number = 5, // Increased from 3 to 5
-    baseDelay: number = 1500 // Increased base delay
-  ): Promise<T> => {
-    let lastError: any;
-    
-    for (let attempt = 0; attempt <= maxRetries; attempt++) {
-      try {
-        return await operation();
-      } catch (error: any) {
-        lastError = error;
-        
-        // Only retry on schema cache errors or connection errors
-        const isRetryable = isSchemaCacheError(error) || 
-          error.message?.includes('fetch failed') ||
-          error.message?.includes('network') ||
-          error.code === 'NETWORK_ERROR';
-        
-        if (!isRetryable || attempt === maxRetries) {
-          throw error;
-        }
-        
-        // Exponential backoff with jitter
-        const baseBackoff = baseDelay * Math.pow(2, attempt);
-        const delay = addJitter(baseBackoff);
-        
-        console.warn(`[createEventWithData] Retryable error on attempt ${attempt + 1}/${maxRetries + 1}, retrying in ${Math.round(delay)}ms...`, {
-          error: error.message,
-          code: error.code,
-          details: error.details,
-          hint: error.hint,
-        });
-        
-        // Wait before retrying
-        await new Promise(resolve => setTimeout(resolve, delay));
-        
-        // Try to refresh session/auth before retry
-        try {
-          const { data: { session } } = await supabase.auth.getSession();
-          if (session) {
-            console.log('[createEventWithData] Session refreshed before retry');
-          }
-        } catch (authError) {
-          console.warn('[createEventWithData] Failed to refresh session:', authError);
-        }
-      }
-    }
-    
-    throw lastError;
+  // Retry config optimized for fast failure
+  const retryConfig = {
+    ...DEFAULT_RETRY_CONFIG,
+    maxRetries: 2, // Reduced from 5 - fail faster
+    baseDelayMs: 1000,
+    maxDelayMs: 3000,
   };
 
   // Core event creation logic - can be called with current state or restored state
@@ -312,7 +286,7 @@ export function CreateWizard() {
         hasTemplate: !!eventData.template,
         hasDateRange: !!eventData.dateRange,
       });
-      return null;
+      throw new Error('Missing required event data. Please go back and complete all steps.');
     }
 
     console.log('[createEventWithData] Starting event creation', {
@@ -322,10 +296,17 @@ export function CreateWizard() {
       hasLocation: !!eventData.locationText,
     });
 
-    // Verify Supabase connection
+    // Update progress: Connecting
+    if (isMountedRef.current) setProgress('connecting');
+
+    // Verify Supabase connection with timeout
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
+      const sessionResult = await withTimeout(
+        supabase.auth.getSession(),
+        SESSION_CHECK_TIMEOUT,
+        'Connection check timed out'
+      );
+      if (!sessionResult.data.session) {
         throw new Error('No active session');
       }
       console.log('[createEventWithData] Supabase connection verified, session active');
@@ -334,11 +315,17 @@ export function CreateWizard() {
         error: connectionError.message,
         code: connectionError.code,
       });
+      if (connectionError instanceof TimeoutError) {
+        throw new Error('Connection timed out. Please check your internet and try again.');
+      }
       throw new Error('Database connection failed. Please try again.');
     }
 
-    // Create event with retry logic
-    const event = await retryWithBackoff(async () => {
+    // Update progress: Creating
+    if (isMountedRef.current) setProgress('creating');
+
+    // Create event with retry logic and timeout
+    const event = await withRetry(async () => {
       console.log('[createEventWithData] Inserting event into database...');
       
       const eventPayload = {
@@ -346,11 +333,12 @@ export function CreateWizard() {
         title: eventData.eventName,
         description: eventData.aiDescription,
         location: eventData.locationText,
-        start_date: eventData.dateRange.start.toISOString(),
-        end_date: eventData.dateRange.end.toISOString(),
+        start_date: eventData.dateRange!.start.toISOString(),
+        end_date: eventData.dateRange!.end.toISOString(),
         status: "active",
+        cover_image_url: eventData.coverImageUrl || null,
         settings: {
-          template: eventData.template.id,
+          template: eventData.template!.id,
           placeId: eventData.location?.placeId || null,
         },
       };
@@ -383,19 +371,38 @@ export function CreateWizard() {
 
       console.log('[createEventWithData] Event created successfully:', event.id);
       return event;
-    });
+    }, retryConfig, OPERATION_TIMEOUT);
 
-    // Generate and create blocks
-    try {
-      const blocks = generateBlocks(
-        eventData.template,
-        eventData.dateRange.start,
-        eventData.dateRange.end
-      );
+    // Update progress: Adding details
+    if (isMountedRef.current) setProgress('adding-details');
 
-      if (blocks.length > 0) {
-        console.log(`[createEventWithData] Creating ${blocks.length} blocks...`);
-        const { error: blocksError } = await supabase.from("blocks").insert(
+    // Use custom blocks if provided, otherwise generate from template
+    const blocks = eventData.customBlocks 
+      ? eventData.customBlocks.map((block, index) => {
+          // Convert BlockTemplate to the format expected by generateBlocks output
+          const blockDate = new Date(eventData.dateRange!.start);
+          blockDate.setDate(blockDate.getDate() + Math.floor(index / 4)); // Spread across days
+          const startTime = new Date(blockDate);
+          startTime.setHours(10 + (index % 4) * 3, 0, 0, 0);
+          const endTime = new Date(startTime);
+          endTime.setHours(startTime.getHours() + block.defaultDuration);
+          return {
+            name: block.name,
+            startTime,
+            endTime,
+            attendanceRequired: block.attendanceRequired ?? false,
+          };
+        })
+      : generateBlocks(
+          eventData.template!,
+          eventData.dateRange!.start,
+          eventData.dateRange!.end
+        );
+
+    if (blocks.length > 0) {
+      console.log(`[createEventWithData] Creating ${blocks.length} blocks...`);
+      const blocksResult = await withTimeout(
+        supabase.from("blocks").insert(
           blocks.map((block, index) => ({
             event_id: event.id,
             name: block.name,
@@ -403,24 +410,24 @@ export function CreateWizard() {
             end_time: block.endTime.toISOString(),
             order_index: index,
           }))
-        );
-        if (blocksError) {
-          console.error('[createEventWithData] Blocks insert error:', blocksError);
-          throw blocksError;
-        }
-        console.log('[createEventWithData] Blocks created successfully');
+        ),
+        OPERATION_TIMEOUT,
+        'Adding time blocks timed out'
+      );
+      if (blocksResult.error) {
+        console.error('[createEventWithData] Blocks insert error:', blocksResult.error);
+        throw blocksResult.error;
       }
-    } catch (error: any) {
-      console.error('[createEventWithData] Failed to create blocks:', error);
-      throw error;
+      console.log('[createEventWithData] Blocks created successfully');
     }
 
-    // Create questions from template
-    try {
-      if (eventData.template.questions.length > 0) {
-        console.log(`[createEventWithData] Creating ${eventData.template.questions.length} questions...`);
-        const { error: questionsError } = await supabase.from("questions").insert(
-          eventData.template.questions.map((q, index) => ({
+    // Use custom questions if provided, otherwise use template
+    const questions = eventData.customQuestions || eventData.template!.questions;
+    if (questions.length > 0) {
+      console.log(`[createEventWithData] Creating ${questions.length} questions...`);
+      const questionsResult = await withTimeout(
+        supabase.from("questions").insert(
+          questions.map((q, index) => ({
             event_id: event.id,
             type: q.type,
             prompt: q.prompt,
@@ -428,67 +435,80 @@ export function CreateWizard() {
             required: q.required ?? true,
             order_index: index,
           }))
-        );
-        if (questionsError) {
-          console.error('[createEventWithData] Questions insert error:', questionsError);
-          throw questionsError;
-        }
-        console.log('[createEventWithData] Questions created successfully');
+        ),
+        OPERATION_TIMEOUT,
+        'Adding questions timed out'
+      );
+      if (questionsResult.error) {
+        console.error('[createEventWithData] Questions insert error:', questionsResult.error);
+        throw questionsResult.error;
       }
-    } catch (error: any) {
-      console.error('[createEventWithData] Failed to create questions:', error);
-      throw error;
+      console.log('[createEventWithData] Questions created successfully');
     }
 
-    // Generate and create checkpoints
-    try {
-      const checkpoints = generateCheckpoints(eventData.template, eventData.dateRange.start);
-      if (checkpoints.length > 0) {
-        console.log(`[createEventWithData] Creating ${checkpoints.length} checkpoints...`);
-        const { error: checkpointsError } = await supabase.from("checkpoints").insert(
+    // Use custom checkpoints if provided, otherwise generate from template
+    const checkpointTemplates = eventData.customCheckpoints || eventData.template!.checkpoints;
+    const checkpoints = checkpointTemplates.map((cp) => {
+      const triggerAt = new Date(eventData.dateRange!.start);
+      triggerAt.setDate(triggerAt.getDate() + cp.offsetDays);
+      return {
+        name: cp.name,
+        triggerAt,
+        type: cp.type,
+        autoResolveTo: cp.autoResolveTo,
+      };
+    });
+    if (checkpoints.length > 0) {
+      console.log(`[createEventWithData] Creating ${checkpoints.length} checkpoints...`);
+      const checkpointsResult = await withTimeout(
+        supabase.from("checkpoints").insert(
           checkpoints.map((cp) => ({
             event_id: event.id,
             trigger_at: cp.triggerAt.toISOString(),
             type: cp.type,
             message: `Reminder: ${cp.name}`,
           }))
-        );
-        if (checkpointsError) {
-          console.error('[createEventWithData] Checkpoints insert error:', checkpointsError);
-          throw checkpointsError;
-        }
-        console.log('[createEventWithData] Checkpoints created successfully');
+        ),
+        OPERATION_TIMEOUT,
+        'Adding checkpoints timed out'
+      );
+      if (checkpointsResult.error) {
+        console.error('[createEventWithData] Checkpoints insert error:', checkpointsResult.error);
+        throw checkpointsResult.error;
       }
-    } catch (error: any) {
-      console.error('[createEventWithData] Failed to create checkpoints:', error);
-      throw error;
+      console.log('[createEventWithData] Checkpoints created successfully');
     }
 
-    // Create guests if any
-    try {
-      if (eventData.guests.length > 0) {
-        console.log(`[createEventWithData] Creating ${eventData.guests.length} guests...`);
-        const guestRecords = eventData.guests.map((g) => {
-          // Check if it's a phone number or a name
-          const isPhone = /^[+\d\s()-]+$/.test(g);
-          return {
-            event_id: event.id,
-            name: isPhone ? 'Guest' : g,
-            phone: isPhone ? g.replace(/\s/g, '') : null,
-          };
-        });
+    // Update progress: Finalizing
+    if (isMountedRef.current) setProgress('finalizing');
 
-        const { error: guestsError } = await supabase.from("guests").insert(guestRecords);
-        if (guestsError) {
-          console.error('[createEventWithData] Guests insert error:', guestsError);
-          throw guestsError;
-        }
-        console.log('[createEventWithData] Guests created successfully');
+    // Create guests if any with timeout
+    if (eventData.guests.length > 0) {
+      console.log(`[createEventWithData] Creating ${eventData.guests.length} guests...`);
+      const guestRecords = eventData.guests.map((g) => {
+        // Check if it's a phone number or a name
+        const isPhone = /^[+\d\s()-]+$/.test(g);
+        return {
+          event_id: event.id,
+          name: isPhone ? 'Guest' : g,
+          phone: isPhone ? g.replace(/\s/g, '') : null,
+        };
+      });
+
+      const guestsResult = await withTimeout(
+        supabase.from("guests").insert(guestRecords),
+        OPERATION_TIMEOUT,
+        'Adding guests timed out'
+      );
+      if (guestsResult.error) {
+        console.error('[createEventWithData] Guests insert error:', guestsResult.error);
+        throw guestsResult.error;
       }
-    } catch (error: any) {
-      console.error('[createEventWithData] Failed to create guests:', error);
-      throw error;
+      console.log('[createEventWithData] Guests created successfully');
     }
+
+    // Update progress: Complete
+    if (isMountedRef.current) setProgress('complete');
 
     console.log('[createEventWithData] Event creation completed successfully:', event.id);
     return event.id;
@@ -498,16 +518,31 @@ export function CreateWizard() {
   const handleCreateEventWithState = async (savedState: typeof state) => {
     if (!savedState.template || !savedState.dateRange) return;
 
+    // Cancel any pending operations
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+
     setIsSubmitting(true);
+    setProgress('idle');
+    setError(null);
+    
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const userResult = await withTimeout(
+        supabase.auth.getUser(),
+        SESSION_CHECK_TIMEOUT,
+        'Authentication check timed out'
+      );
       
-      if (!user) {
+      if (!userResult.data.user) {
         // Still not logged in, shouldn't happen but handle gracefully
+        setIsSubmitting(false);
+        setProgress('idle');
         return;
       }
 
-      const eventId = await createEventWithData(savedState, user.id);
+      const eventId = await createEventWithData(savedState, userResult.data.user.id);
       
       if (eventId) {
         // Clear saved state after successful creation
@@ -517,6 +552,10 @@ export function CreateWizard() {
         navigate(`/events/${eventId}`);
       }
     } catch (error: any) {
+      // Don't show errors if we're unmounting
+      if (!isMountedRef.current) return;
+      if (error.name === 'AbortError') return;
+      
       console.error("[handleCreateEventWithState] Error creating event:", {
         message: error.message,
         code: error.code,
@@ -525,9 +564,14 @@ export function CreateWizard() {
         fullError: error,
       });
       
+      setProgress('error');
+      setCanRetry(true);
+      
       // Provide user-friendly error messages
       let userMessage = "Failed to create event. Please try again.";
-      if (isSchemaCacheError(error)) {
+      if (error instanceof TimeoutError) {
+        userMessage = "Request timed out. Please check your connection and try again.";
+      } else if (isSchemaCacheError(error)) {
         userMessage = "Database connection issue. Please refresh and try again.";
       } else if (error.message) {
         userMessage = error.message;
@@ -535,37 +579,54 @@ export function CreateWizard() {
       
       setError(userMessage);
     } finally {
-      setIsSubmitting(false);
+      if (isMountedRef.current) {
+        setIsSubmitting(false);
+      }
     }
   };
 
   const handleCreateEvent = async () => {
     if (!state.template || !state.dateRange) return;
 
+    // Cancel any pending operations
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+
     setIsSubmitting(true);
+    setProgress('idle');
     setError(null);
     setCanRetry(false);
     
     try {
-      // Get current user
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      // Get current user with timeout
+      const userResult = await withTimeout(
+        supabase.auth.getUser(),
+        SESSION_CHECK_TIMEOUT,
+        'Authentication check timed out'
+      );
       
-      if (userError) {
-        console.error("[handleCreateEvent] Error getting user:", userError);
+      if (userResult.error) {
+        console.error("[handleCreateEvent] Error getting user:", userResult.error);
         throw new Error("Authentication error. Please sign in again.");
       }
       
-      if (!user) {
+      if (!userResult.data.user) {
         // Save wizard state before redirecting to auth
         saveWizardState(state);
+        
+        // Reset submitting state before redirect
+        setIsSubmitting(false);
+        setProgress('idle');
         
         // Redirect to auth with return URL
         navigate("/auth?returnTo=/create");
         return;
       }
 
-      console.log("[handleCreateEvent] Creating event for user:", user.id);
-      const eventId = await createEventWithData(state, user.id);
+      console.log("[handleCreateEvent] Creating event for user:", userResult.data.user.id);
+      const eventId = await createEventWithData(state, userResult.data.user.id);
       
       if (eventId) {
         // Clear any saved state
@@ -579,6 +640,10 @@ export function CreateWizard() {
         throw new Error("Event creation returned no ID");
       }
     } catch (error: any) {
+      // Don't show errors if we're unmounting or abort was triggered
+      if (!isMountedRef.current) return;
+      if (error.name === 'AbortError') return;
+      
       console.error("[handleCreateEvent] Error creating event:", {
         message: error.message,
         code: error.code,
@@ -588,17 +653,23 @@ export function CreateWizard() {
       });
       
       // Check if this error is retryable
-      const isRetryable = isSchemaCacheError(error) || 
+      const isRetryable = 
+        error instanceof TimeoutError ||
+        isSchemaCacheError(error) || 
         error.message?.includes('fetch failed') ||
         error.message?.includes('network') ||
-        error.message?.includes('Database connection') ||
+        error.message?.includes('timed out') ||
+        error.message?.includes('connection') ||
         error.code === 'NETWORK_ERROR';
       
       setCanRetry(isRetryable);
+      setProgress('error');
       
       // Provide user-friendly error messages
       let userMessage = "Failed to create event. Please try again.";
-      if (isSchemaCacheError(error)) {
+      if (error instanceof TimeoutError) {
+        userMessage = "Request timed out. Please check your connection and try again.";
+      } else if (isSchemaCacheError(error)) {
         userMessage = "Database connection issue. Please try again or refresh the page.";
       } else if (error.message) {
         userMessage = error.message;
@@ -606,7 +677,9 @@ export function CreateWizard() {
       
       setError(userMessage);
     } finally {
-      setIsSubmitting(false);
+      if (isMountedRef.current) {
+        setIsSubmitting(false);
+      }
     }
   };
 
@@ -682,6 +755,14 @@ export function CreateWizard() {
               goToStep('host');
             }}
             onConfirm={goNext}
+            customBlocks={state.customBlocks}
+            customCheckpoints={state.customCheckpoints}
+            customQuestions={state.customQuestions}
+            onBlocksChange={setCustomBlocks}
+            onCheckpointsChange={setCustomCheckpoints}
+            onQuestionsChange={setCustomQuestions}
+            coverImageUrl={state.coverImageUrl}
+            onCoverImageChange={setCoverImageUrl}
           />
         ) : null;
       case 'guests':
@@ -693,6 +774,7 @@ export function CreateWizard() {
             onSendInvites={handleCreateEvent}
             onSkip={handleCreateEvent}
             isSubmitting={isSubmitting}
+            progress={progress}
             error={error}
             canRetry={canRetry}
             onRetry={handleCreateEvent}
@@ -706,7 +788,7 @@ export function CreateWizard() {
   // Progress indicator
   const steps = ['type', 'host', 'date', 'location', 'confirm', 'guests'];
   const currentStepIndex = steps.indexOf(state.step);
-  const progress = ((currentStepIndex + 1) / steps.length) * 100;
+  const progressPercent = ((currentStepIndex + 1) / steps.length) * 100;
 
   return (
     <div className="h-dvh w-full flex flex-col bg-background overflow-hidden">
@@ -717,7 +799,7 @@ export function CreateWizard() {
           <motion.div
             className="h-full bg-primary"
             initial={{ width: 0 }}
-            animate={{ width: `${progress}%` }}
+            animate={{ width: `${progressPercent}%` }}
             transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
           />
         </div>

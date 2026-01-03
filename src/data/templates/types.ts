@@ -70,6 +70,11 @@ export interface WizardState {
   aiDescription: string;
   isGeneratingDescription: boolean;
   guests: string[]; // Phone numbers or names
+  // Custom edits to template defaults
+  customBlocks?: BlockTemplate[];
+  customCheckpoints?: CheckpointTemplate[];
+  customQuestions?: QuestionTemplate[];
+  coverImageUrl?: string;
 }
 
 export const initialWizardState: WizardState = {

@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Send, Users, Clock, X, Loader2, UserPlus, RefreshCw, AlertCircle } from 'lucide-react';
+import { Send, Users, X, Loader2, UserPlus, RefreshCw, AlertCircle } from 'lucide-react';
+import type { OperationProgress } from '@/lib/async-utils';
+import { progressMessages } from '@/lib/async-utils';
 
 // Contact Picker API types (not yet in standard TypeScript lib)
 interface ContactAddress {
@@ -43,6 +45,7 @@ interface GuestsStepProps {
   onSendInvites: () => void;
   onSkip: () => void;
   isSubmitting: boolean;
+  progress?: OperationProgress;
   error?: string | null;
   canRetry?: boolean;
   onRetry?: () => void;
@@ -68,10 +71,13 @@ export function GuestsStep({
   onSendInvites,
   onSkip,
   isSubmitting,
+  progress = 'idle',
   error,
   canRetry,
   onRetry,
 }: GuestsStepProps) {
+  // Get the display message based on progress
+  const progressMessage = progressMessages[progress] || 'Creating Event...';
   const [inputValue, setInputValue] = useState('');
   const [isImporting, setIsImporting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
@@ -341,13 +347,8 @@ John Smith"
           >
             {isSubmitting ? (
               <>
-                <motion.div
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-                >
-                  <Clock className="w-5 h-5" />
-                </motion.div>
-                Creating Event...
+                <Loader2 className="w-5 h-5 animate-spin" />
+                {progressMessage || 'Creating Event...'}
               </>
             ) : (
               <>
@@ -371,13 +372,8 @@ John Smith"
           >
             {isSubmitting ? (
               <>
-                <motion.div
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-                >
-                  <Clock className="w-5 h-5" />
-                </motion.div>
-                Creating Event...
+                <Loader2 className="w-5 h-5 animate-spin" />
+                {progressMessage || 'Creating Event...'}
               </>
             ) : (
               <>

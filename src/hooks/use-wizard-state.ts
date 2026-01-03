@@ -5,6 +5,9 @@ import type {
   EventTemplate, 
   GooglePlaceResult,
   EventTemplateId,
+  BlockTemplate,
+  CheckpointTemplate,
+  QuestionTemplate,
 } from '@/data/templates/types';
 import { initialWizardState, generateEventName, templateById } from '@/data/templates';
 
@@ -23,6 +26,11 @@ interface SerializableWizardState {
   locationText: string;
   aiDescription: string;
   guests: string[];
+  // Custom edits to template defaults
+  customBlocks?: BlockTemplate[];
+  customCheckpoints?: CheckpointTemplate[];
+  customQuestions?: QuestionTemplate[];
+  coverImageUrl?: string;
 }
 
 /**
@@ -46,6 +54,10 @@ export function saveWizardState(state: WizardState): void {
       locationText: state.locationText,
       aiDescription: state.aiDescription,
       guests: state.guests,
+      customBlocks: state.customBlocks,
+      customCheckpoints: state.customCheckpoints,
+      customQuestions: state.customQuestions,
+      coverImageUrl: state.coverImageUrl,
     };
     localStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(serializable));
   } catch (error) {
@@ -87,6 +99,10 @@ export function loadWizardState(): WizardState | null {
       aiDescription: parsed.aiDescription,
       isGeneratingDescription: false,
       guests: parsed.guests,
+      customBlocks: parsed.customBlocks,
+      customCheckpoints: parsed.customCheckpoints,
+      customQuestions: parsed.customQuestions,
+      coverImageUrl: parsed.coverImageUrl,
     };
   } catch (error) {
     console.error('Failed to load wizard state:', error);
@@ -204,6 +220,34 @@ export function useWizardState() {
     }));
   }, []);
 
+  const setCustomBlocks = useCallback((customBlocks: BlockTemplate[]) => {
+    setState((prev) => ({
+      ...prev,
+      customBlocks,
+    }));
+  }, []);
+
+  const setCustomCheckpoints = useCallback((customCheckpoints: CheckpointTemplate[]) => {
+    setState((prev) => ({
+      ...prev,
+      customCheckpoints,
+    }));
+  }, []);
+
+  const setCustomQuestions = useCallback((customQuestions: QuestionTemplate[]) => {
+    setState((prev) => ({
+      ...prev,
+      customQuestions,
+    }));
+  }, []);
+
+  const setCoverImageUrl = useCallback((coverImageUrl: string) => {
+    setState((prev) => ({
+      ...prev,
+      coverImageUrl,
+    }));
+  }, []);
+
   const goToStep = useCallback((step: WizardStep) => {
     setStep(step);
   }, [setStep]);
@@ -262,6 +306,10 @@ export function useWizardState() {
     setAIDescription,
     setGeneratingDescription,
     setGuests,
+    setCustomBlocks,
+    setCustomCheckpoints,
+    setCustomQuestions,
+    setCoverImageUrl,
     goToStep,
     goNext,
     goBack,
