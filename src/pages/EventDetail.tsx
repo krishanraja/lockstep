@@ -68,8 +68,10 @@ const EventDetail = () => {
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [eventUsage, setEventUsage] = useState<EventUsage | null>(null);
   const [user, setUser] = useState<any>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const loadEventData = useCallback(async (eventId: string, cancelled: { current: boolean }) => {
+    setLoadError(null);
     setIsLoading(true);
 
     try {
@@ -129,17 +131,14 @@ const EventDetail = () => {
       }
     } catch (err: any) {
       if (cancelled.current) return;
-      toast({
-        title: 'Error loading event',
-        description: err.message,
-        variant: 'destructive',
-      });
+      console.error('[EventDetail] Error loading event:', err);
+      setLoadError(err.message || 'Failed to load event');
     } finally {
       if (!cancelled.current) {
         setIsLoading(false);
       }
     }
-  }, [toast]);
+  }, []);
 
   useEffect(() => {
     if (!id) return;
@@ -175,7 +174,7 @@ const EventDetail = () => {
     return () => {
       cancelled.current = true;
     };
-  }, [id, loadEventData, searchParams, toast]);
+  }, [id, loadEventData, searchParams]);
 
   const handleSendNudge = async () => {
     if (!id || !user) return;
@@ -273,6 +272,21 @@ const EventDetail = () => {
 
       {/* Content */}
       <main className="flex-1 overflow-y-auto">
+        {/* Error display */}
+        {loadError && (
+          <div className="p-6 border-b border-border/50">
+            <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-xl">
+              <p className="text-sm text-destructive mb-2">{loadError}</p>
+              <button 
+                onClick={() => window.location.reload()}
+                className="text-xs text-primary hover:underline"
+              >
+                Reload page
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Event info */}
         <div className="p-6 border-b border-border/50">
           <h1 className="text-2xl font-display font-bold text-foreground mb-2">
@@ -424,20 +438,22 @@ const EventDetail = () => {
         <div className="p-6 border-t border-border/50">
           <div className="grid grid-cols-2 gap-3">
             <button
-              onClick={() => toast({ title: 'Share link coming soon!' })}
+              disabled
+              title="Coming soon"
               className="p-4 rounded-xl bg-card border border-border/50
-                flex flex-col items-center gap-2 hover:border-primary/50 transition-colors"
+                flex flex-col items-center gap-2 opacity-50 cursor-not-allowed"
             >
-              <Share2 className="w-5 h-5 text-primary" />
-              <span className="text-sm text-foreground">Share Link</span>
+              <Share2 className="w-5 h-5 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">Share Link</span>
             </button>
             <button
-              onClick={() => toast({ title: 'Export coming soon!' })}
+              disabled
+              title="Coming soon"
               className="p-4 rounded-xl bg-card border border-border/50
-                flex flex-col items-center gap-2 hover:border-primary/50 transition-colors"
+                flex flex-col items-center gap-2 opacity-50 cursor-not-allowed"
             >
-              <Download className="w-5 h-5 text-primary" />
-              <span className="text-sm text-foreground">Export CSV</span>
+              <Download className="w-5 h-5 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">Export CSV</span>
             </button>
           </div>
         </div>

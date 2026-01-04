@@ -1,9 +1,8 @@
 import { Suspense, lazy } from "react";
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 
 // Eager load critical pages
 import Index from "./pages/Index";
@@ -37,27 +36,27 @@ const PageLoader = () => (
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <Toaster />
-      <Sonner />
       <BrowserRouter>
-        <Suspense fallback={<PageLoader />}>
-          <Routes>
-            {/* Public routes */}
-            <Route path="/" element={<Index />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/rsvp/:token" element={<RSVPPage />} />
-            
-            {/* Organiser routes */}
-            <Route path="/create" element={<CreateEvent />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/events/:id" element={<EventDetail />} />
-            <Route path="/pricing" element={<Pricing />} />
-            <Route path="/profile" element={<Profile />} />
-            
-            {/* Catch-all */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </Suspense>
+        <ErrorBoundary>
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              {/* Public routes */}
+              <Route path="/" element={<Index />} />
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/rsvp/:token" element={<RSVPPage />} />
+              
+              {/* Organiser routes */}
+              <Route path="/create" element={<CreateEvent />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/events/:id" element={<EventDetail />} />
+              <Route path="/pricing" element={<Pricing />} />
+              <Route path="/profile" element={<Profile />} />
+              
+              {/* Catch-all */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Suspense>
+        </ErrorBoundary>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

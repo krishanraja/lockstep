@@ -1,10 +1,9 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Check, Calendar, MapPin, ChevronRight, ChevronLeft } from 'lucide-react';
+import { Check, Calendar, MapPin, ChevronRight, ChevronLeft, AlertCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
-import { useToast } from '@/hooks/use-toast';
 
 interface Block {
   id: string;
@@ -52,12 +51,12 @@ interface QuestionAnswer {
 const RSVPPage = () => {
   const { token } = useParams<{ token: string }>();
   const [searchParams] = useSearchParams();
-  const { toast } = useToast();
   
   const [step, setStep] = useState<RSVPStep>('welcome');
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   
   const [guest, setGuest] = useState<Guest | null>(null);
   const [event, setEvent] = useState<Event | null>(null);
@@ -213,6 +212,7 @@ const RSVPPage = () => {
     if (!guest) return;
 
     setIsSubmitting(true);
+    setSubmitError(null);
     try {
       // Upsert RSVPs
       for (const response of responses) {
@@ -254,11 +254,8 @@ const RSVPPage = () => {
 
       setStep('complete');
     } catch (err: any) {
-      toast({
-        title: 'Error submitting RSVP',
-        description: err.message,
-        variant: 'destructive',
-      });
+      console.error('[RSVPPage] Error submitting RSVP:', err);
+      setSubmitError(err.message || 'Failed to submit RSVP. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -454,15 +451,27 @@ const RSVPPage = () => {
               })}
             </div>
 
+            {/* Submit error (shown when no questions and submit fails) */}
+            {submitError && questions.length === 0 && (
+              <div className="flex-shrink-0 px-4">
+                <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/20 flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 text-destructive mt-0.5 flex-shrink-0" />
+                  <p className="text-sm text-destructive">{submitError}</p>
+                </div>
+              </div>
+            )}
+
             {/* Continue button */}
             <div className="flex-shrink-0 p-4 border-t border-border/50">
               <button
                 onClick={goNext}
+                disabled={isSubmitting}
                 className="w-full py-4 rounded-2xl bg-primary text-primary-foreground font-medium
-                  flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
+                  flex items-center justify-center gap-2 hover:opacity-90 transition-opacity
+                  disabled:opacity-50"
               >
-                {questions.length > 0 ? 'Continue' : 'Submit RSVP'}
-                <ChevronRight className="w-5 h-5" />
+                {isSubmitting ? 'Submitting...' : questions.length > 0 ? 'Continue' : 'Submit RSVP'}
+                {!isSubmitting && <ChevronRight className="w-5 h-5" />}
               </button>
             </div>
           </motion.div>
@@ -573,6 +582,16 @@ const RSVPPage = () => {
                 );
               })}
             </div>
+
+            {/* Submit error */}
+            {submitError && (
+              <div className="flex-shrink-0 px-4">
+                <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/20 flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 text-destructive mt-0.5 flex-shrink-0" />
+                  <p className="text-sm text-destructive">{submitError}</p>
+                </div>
+              </div>
+            )}
 
             {/* Submit button */}
             <div className="flex-shrink-0 p-4 border-t border-border/50">
