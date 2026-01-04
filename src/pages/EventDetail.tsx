@@ -1,29 +1,34 @@
+// EventDetail - AI-powered event management with 2027 UX
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
   ChevronLeft, 
-  Users, 
   Calendar, 
   MapPin, 
-  Bell, 
-  Send,
-  Share2,
-  Download,
   MoreHorizontal,
-  Crown
+  Crown,
+  Copy,
+  Check as CheckIcon
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { format } from 'date-fns';
+import { format, differenceInDays } from 'date-fns';
 import { UpgradeModal } from '@/components/UpgradeModal';
 import { UsageIndicator } from '@/components/UsageIndicator';
+import { 
+  AIAssistant,
+  SmartActions,
+  GuestGrid,
+  TimelineView,
+  VoiceFAB
+} from '@/components/EventDetail';
 import { 
   canSendNudge, 
   getEventUsage, 
   incrementNudgeCount,
-  PricingTier,
   EventUsage
 } from '@/services/subscription';
+import { useRealtimeEvents } from '@/hooks/use-realtime-events';
 
 interface Event {
   id: string;
@@ -38,12 +43,17 @@ interface Event {
 interface Guest {
   id: string;
   name: string;
+  email: string | null;
+  phone: string | null;
   status: string | null;
+  magic_token: string | null;
 }
 
 interface Block {
   id: string;
   name: string;
+  start_time: string | null;
+  end_time: string | null;
 }
 
 interface RSVPCount {
@@ -54,6 +64,14 @@ interface RSVPCount {
   outCount: number;
 }
 
+interface GuestRSVP {
+  guestId: string;
+  blockId: string;
+  response: 'in' | 'maybe' | 'out';
+}
+
+type TabView = 'overview' | 'guests' | 'schedule';
+
 const EventDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -63,12 +81,16 @@ const EventDetail = () => {
   const [guests, setGuests] = useState<Guest[]>([]);
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [rsvpCounts, setRsvpCounts] = useState<RSVPCount[]>([]);
+  const [guestRsvps, setGuestRsvps] = useState<GuestRSVP[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSendingNudge, setIsSendingNudge] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [eventUsage, setEventUsage] = useState<EventUsage | null>(null);
   const [user, setUser] = useState<any>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<TabView>('overview');
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [realtimeUpdateCounter, setRealtimeUpdateCounter] = useState(0);
 
   const loadEventData = useCallback(async (eventId: string, cancelled: { current: boolean }) => {
     setLoadError(null);
@@ -109,13 +131,25 @@ const EventDetail = () => {
 
         // Load RSVP counts per block
         const counts: RSVPCount[] = [];
+        const allRsvps: GuestRSVP[] = [];
+        
         for (const block of blocksData) {
           if (cancelled.current) return;
           
           const { data: rsvps } = await supabase
             .from('rsvps')
-            .select('response')
+            .select('guest_id, response')
             .eq('block_id', block.id);
+
+          if (rsvps) {
+            rsvps.forEach(r => {
+              allRsvps.push({
+                guestId: r.guest_id,
+                blockId: block.id,
+                response: r.response as 'in' | 'maybe' | 'out',
+              });
+            });
+          }
 
           counts.push({
             blockId: block.id,
@@ -128,6 +162,7 @@ const EventDetail = () => {
         
         if (cancelled.current) return;
         setRsvpCounts(counts);
+        setGuestRsvps(allRsvps);
       }
     } catch (err: any) {
       if (cancelled.current) return;
@@ -153,7 +188,6 @@ const EventDetail = () => {
       
       // Check for upgrade success - clean up URL silently
       if (searchParams.get('upgraded') === 'true') {
-        // Clean up URL
         window.history.replaceState({}, '', `/events/${id}`);
       }
       
@@ -176,6 +210,28 @@ const EventDetail = () => {
     };
   }, [id, loadEventData, searchParams]);
 
+  // Real-time subscription for live updates
+  useRealtimeEvents({
+    eventId: id || '',
+    enabled: !!id && !isLoading,
+    onUpdate: useCallback((table: string) => {
+      console.log(`[EventDetail] Real-time update on ${table}`);
+      // Trigger a re-fetch by incrementing counter
+      setRealtimeUpdateCounter(c => c + 1);
+    }, []),
+  });
+
+  // Re-fetch when real-time updates are detected
+  useEffect(() => {
+    if (realtimeUpdateCounter > 0 && id) {
+      const cancelled = { current: false };
+      loadEventData(id, cancelled);
+      return () => { cancelled.current = true; };
+    }
+  }, [realtimeUpdateCounter, id, loadEventData]);
+
+  const pendingGuests = guests.filter(g => g.status === 'pending');
+
   const handleSendNudge = async () => {
     if (!id || !user) return;
     
@@ -183,7 +239,6 @@ const EventDetail = () => {
     const limitCheck = await canSendNudge(id, user.id);
     
     if (!limitCheck.allowed) {
-      // Show upgrade modal
       setShowUpgradeModal(true);
       return;
     }
@@ -191,12 +246,8 @@ const EventDetail = () => {
     setIsSendingNudge(true);
     
     try {
-      // Send nudges to pending guests
-      let successCount = 0;
-      let failCount = 0;
-      
       for (const guest of pendingGuests) {
-        const { error } = await supabase.functions.invoke('send-nudge', {
+        await supabase.functions.invoke('send-nudge', {
           body: {
             guestId: guest.id,
             eventId: id,
@@ -204,31 +255,79 @@ const EventDetail = () => {
             message: `Hey ${guest.name}! Just a reminder to RSVP for ${event?.title}. We need your response to finalize plans.`,
           },
         });
-        
-        if (error) {
-          failCount++;
-        } else {
-          successCount++;
-          // Increment nudge count
-          await incrementNudgeCount(id);
-        }
+        await incrementNudgeCount(id);
       }
       
       // Update usage after sending
       const newUsage = await getEventUsage(id, user.id);
       setEventUsage(newUsage);
-      
-      // Nudges sent successfully - state updated silently
     } catch (err) {
       console.error('Error sending nudges:', err);
-      // Error handled silently - user can see updated state
     } finally {
       setIsSendingNudge(false);
     }
   };
 
-  const pendingGuests = guests.filter(g => g.status === 'pending');
-  const respondedGuests = guests.filter(g => g.status === 'responded');
+  const handleShare = async () => {
+    // Copy the first guest's RSVP link or a generic invite link
+    const firstGuest = guests[0];
+    if (firstGuest?.magic_token) {
+      const link = `${window.location.origin}/rsvp/${firstGuest.magic_token}`;
+      await navigator.clipboard.writeText(link);
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2000);
+    } else {
+      // No guests yet - copy event link
+      const link = `${window.location.origin}/events/${id}`;
+      await navigator.clipboard.writeText(link);
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2000);
+    }
+  };
+
+  const handleExport = () => {
+    // Generate CSV
+    const headers = ['Name', 'Email', 'Phone', 'Status', ...blocks.map(b => b.name)];
+    const rows = guests.map(guest => {
+      const guestResponses = blocks.map(block => {
+        const rsvp = guestRsvps.find(r => r.guestId === guest.id && r.blockId === block.id);
+        return rsvp?.response || 'No response';
+      });
+      return [
+        guest.name,
+        guest.email || '',
+        guest.phone || '',
+        guest.status || 'pending',
+        ...guestResponses,
+      ];
+    });
+
+    const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${event?.title || 'guests'}-export.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleScheduleReminder = () => {
+    // TODO: Implement scheduled reminders
+    console.log('Schedule reminder clicked');
+  };
+
+  const daysUntilEvent = event?.start_date 
+    ? differenceInDays(new Date(event.start_date), new Date())
+    : null;
+
+  // Calculate stats for AI Assistant
+  const stats = {
+    totalGuests: guests.length,
+    respondedCount: guests.filter(g => g.status === 'responded').length,
+    pendingCount: pendingGuests.length,
+    inCount: rsvpCounts.reduce((sum, r) => sum + r.inCount, 0),
+  };
 
   if (isLoading) {
     return (
@@ -312,152 +411,136 @@ const EventDetail = () => {
           </div>
         </div>
 
-        {/* Open loops / Pending guests */}
-        {pendingGuests.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="p-6 border-b border-border/50 bg-maybe/5"
-          >
-            <div className="flex items-start justify-between mb-3">
-              <div>
-                <h2 className="font-medium text-foreground flex items-center gap-2">
-                  <Bell className="w-4 h-4 text-maybe" />
-                  {pendingGuests.length} people need a nudge
-                </h2>
-                <p className="text-sm text-muted-foreground mt-1">
-                  They haven't responded yet
-                </p>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap gap-2 mb-4">
-              {pendingGuests.slice(0, 5).map((guest) => (
-                <span
-                  key={guest.id}
-                  className="px-3 py-1 rounded-full bg-muted text-sm text-foreground"
-                >
-                  {guest.name}
-                </span>
-              ))}
-              {pendingGuests.length > 5 && (
-                <span className="px-3 py-1 text-sm text-muted-foreground">
-                  +{pendingGuests.length - 5} more
-                </span>
-              )}
-            </div>
-
-            {/* Nudge remaining indicator */}
-            {eventUsage && eventUsage.nudgesLimit !== -1 && (
-              <div className="mb-3">
-                <UsageIndicator
-                  type="nudges"
-                  used={eventUsage.nudgesUsed}
-                  limit={eventUsage.nudgesLimit}
-                  tier={eventUsage.tier}
-                  showUpgradeHint={true}
-                  onClick={eventUsage.nudgesUsed >= eventUsage.nudgesLimit ? () => setShowUpgradeModal(true) : undefined}
-                />
-              </div>
-            )}
-
-            <button
-              onClick={handleSendNudge}
-              disabled={isSendingNudge}
-              className="w-full py-3 rounded-xl bg-maybe text-background font-medium
-                flex items-center justify-center gap-2 hover:opacity-90 transition-opacity
-                disabled:opacity-50"
-            >
-              {isSendingNudge ? (
-                <div className="w-4 h-4 border-2 border-background border-t-transparent rounded-full animate-spin" />
-              ) : eventUsage && eventUsage.nudgesLimit !== -1 && eventUsage.nudgesUsed >= eventUsage.nudgesLimit ? (
-                <>
-                  <Crown className="w-4 h-4" />
-                  Upgrade to Send
-                </>
-              ) : (
-                <>
-                  <Send className="w-4 h-4" />
-                  Send Nudge
-                </>
-              )}
-            </button>
-          </motion.div>
-        )}
-
-        {/* RSVP counts by block */}
-        <div className="p-6">
-          <h2 className="font-medium text-foreground mb-4 flex items-center gap-2">
-            <Users className="w-4 h-4" />
-            Responses by Block
-          </h2>
-
-          <div className="space-y-3">
-            {rsvpCounts.map((block, index) => {
-              const total = block.inCount + block.maybeCount + block.outCount;
-              const inPercent = total > 0 ? (block.inCount / total) * 100 : 0;
-              const maybePercent = total > 0 ? (block.maybeCount / total) * 100 : 0;
-              
-              return (
-                <motion.div
-                  key={block.blockId}
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.05 }}
-                  className="p-4 rounded-xl bg-card border border-border/50"
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="font-medium text-foreground">{block.blockName}</span>
-                    <span className="text-sm text-confirmed">{block.inCount} in</span>
-                  </div>
-                  
-                  {/* Progress bar */}
-                  <div className="h-2 rounded-full bg-muted overflow-hidden flex">
-                    <div 
-                      className="h-full bg-confirmed transition-all duration-500"
-                      style={{ width: `${inPercent}%` }}
-                    />
-                    <div 
-                      className="h-full bg-maybe transition-all duration-500"
-                      style={{ width: `${maybePercent}%` }}
-                    />
-                  </div>
-                  
-                  <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-                    <span>{block.inCount} in</span>
-                    <span>{block.maybeCount} maybe</span>
-                    <span>{block.outCount} out</span>
-                  </div>
-                </motion.div>
-              );
-            })}
+        {/* Tab Navigation */}
+        <div className="px-6 py-3 border-b border-border/50">
+          <div className="flex gap-1 p-1 bg-muted rounded-xl">
+            {(['overview', 'guests', 'schedule'] as TabView[]).map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all
+                  ${activeTab === tab 
+                    ? 'bg-card text-foreground shadow-sm' 
+                    : 'text-muted-foreground hover:text-foreground'
+                  }`}
+              >
+                {tab.charAt(0).toUpperCase() + tab.slice(1)}
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* Quick actions */}
-        <div className="p-6 border-t border-border/50">
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              disabled
-              title="Coming soon"
-              className="p-4 rounded-xl bg-card border border-border/50
-                flex flex-col items-center gap-2 opacity-50 cursor-not-allowed"
+        {/* Tab Content */}
+        <div className="p-6">
+          {activeTab === 'overview' && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="space-y-6"
             >
-              <Share2 className="w-5 h-5 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">Share Link</span>
-            </button>
-            <button
-              disabled
-              title="Coming soon"
-              className="p-4 rounded-xl bg-card border border-border/50
-                flex flex-col items-center gap-2 opacity-50 cursor-not-allowed"
+              {/* AI Assistant */}
+              <AIAssistant
+                eventId={id!}
+                eventTitle={event.title}
+                stats={stats}
+                blocks={blocks}
+                onAction={(action) => {
+                  if (action.type === 'nudge') handleSendNudge();
+                }}
+              />
+
+              {/* Smart Actions */}
+              <SmartActions
+                pendingCount={pendingGuests.length}
+                totalGuests={guests.length}
+                daysUntilEvent={daysUntilEvent}
+                onNudge={handleSendNudge}
+                onShare={handleShare}
+                onExport={handleExport}
+                onScheduleReminder={handleScheduleReminder}
+                isNudgeLoading={isSendingNudge}
+              />
+
+              {/* Usage indicator */}
+              {eventUsage && eventUsage.nudgesLimit !== -1 && (
+                <div className="p-4 rounded-xl bg-card border border-border/50">
+                  <UsageIndicator
+                    type="nudges"
+                    used={eventUsage.nudgesUsed}
+                    limit={eventUsage.nudgesLimit}
+                    tier={eventUsage.tier}
+                    showUpgradeHint={true}
+                    onClick={eventUsage.nudgesUsed >= eventUsage.nudgesLimit 
+                      ? () => setShowUpgradeModal(true) 
+                      : undefined}
+                  />
+                </div>
+              )}
+
+              {/* Link copied toast */}
+              {copiedLink && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 20 }}
+                  className="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 py-2 
+                    rounded-xl bg-confirmed text-background text-sm font-medium
+                    flex items-center gap-2 shadow-lg"
+                >
+                  <CheckIcon className="w-4 h-4" />
+                  Link copied to clipboard!
+                </motion.div>
+              )}
+            </motion.div>
+          )}
+
+          {activeTab === 'guests' && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
             >
-              <Download className="w-5 h-5 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">Export CSV</span>
-            </button>
-          </div>
+              <GuestGrid
+                guests={guests.map(g => ({
+                  id: g.id,
+                  name: g.name,
+                  email: g.email,
+                  phone: g.phone,
+                  status: (g.status as 'pending' | 'responded') || 'pending',
+                }))}
+                blocks={blocks}
+                rsvps={guestRsvps}
+              />
+            </motion.div>
+          )}
+
+          {activeTab === 'schedule' && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+            >
+              <TimelineView
+                blocks={blocks}
+                rsvpCounts={rsvpCounts}
+                eventStartDate={event.start_date}
+                eventEndDate={event.end_date}
+              />
+            </motion.div>
+          )}
         </div>
       </main>
+
+      {/* Voice FAB */}
+      <VoiceFAB
+        eventTitle={event.title}
+        stats={stats}
+        blocks={rsvpCounts.map(r => ({ 
+          id: r.blockId, 
+          name: r.blockName, 
+          inCount: r.inCount 
+        }))}
+        onNudge={handleSendNudge}
+        onScheduleReminder={handleScheduleReminder}
+      />
 
       {/* Upgrade Modal */}
       {eventUsage && (
@@ -471,7 +554,6 @@ const EventDetail = () => {
           currentLimit={eventUsage.nudgesLimit}
           onUpgradeSuccess={() => {
             setShowUpgradeModal(false);
-            // Refresh usage data
             if (user) {
               getEventUsage(id!, user.id).then(setEventUsage);
             }
@@ -483,9 +565,3 @@ const EventDetail = () => {
 };
 
 export default EventDetail;
-
-
-
-
-
-
