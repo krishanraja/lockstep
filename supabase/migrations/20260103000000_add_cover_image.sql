@@ -11,3 +11,4 @@ COMMENT ON COLUMN public.events.cover_image_url IS 'URL of the event cover image
 
 
 
+

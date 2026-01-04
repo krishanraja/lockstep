@@ -277,6 +277,7 @@ export function ConfirmStep({
         onClose={() => setShowQuestionsModal(false)}
         questions={questions}
         onSave={handleQuestionsSave}
+        eventType={template.id}
       />
       
       <EventPhotoSelector

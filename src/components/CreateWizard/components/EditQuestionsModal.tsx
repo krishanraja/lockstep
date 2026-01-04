@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, MessageSquare, Trash2, Plus, Check, GripVertical } from 'lucide-react';
+import { X, MessageSquare, Trash2, Plus, Check, GripVertical, Library, ChevronDown } from 'lucide-react';
 import type { QuestionTemplate } from '@/data/templates/types';
+import { QUESTION_LIBRARY, CHECKPOINT_PRESETS, OPTION_PRESETS, type LibraryQuestion, toQuestionTemplate } from '@/data/question-library';
 
 interface EditableQuestion extends QuestionTemplate {
   id: string;
@@ -12,14 +13,16 @@ interface EditQuestionsModalProps {
   onClose: () => void;
   questions: QuestionTemplate[];
   onSave: (questions: QuestionTemplate[]) => void;
+  eventType?: string; // To filter relevant questions
 }
 
+// Only structured question types allowed - NO free text for data quality
 const questionTypeLabels: Record<string, string> = {
   boolean: 'Yes/No',
   single_select: 'Single Choice',
   multi_select: 'Multiple Choice',
-  text: 'Text Answer',
   number: 'Number',
+  // 'text' type removed - open-ended text defeats AI data processing
 };
 
 export function EditQuestionsModal({
@@ -27,6 +30,7 @@ export function EditQuestionsModal({
   onClose,
   questions,
   onSave,
+  eventType = 'custom',
 }: EditQuestionsModalProps) {
   const [editableQuestions, setEditableQuestions] = useState<EditableQuestion[]>(() =>
     questions.map((q, index) => ({
@@ -36,9 +40,17 @@ export function EditQuestionsModal({
   );
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editPrompt, setEditPrompt] = useState('');
-  const [editType, setEditType] = useState<QuestionTemplate['type']>('text');
+  const [editType, setEditType] = useState<QuestionTemplate['type']>('boolean');
   const [editOptions, setEditOptions] = useState<string[]>([]);
   const [draggedId, setDraggedId] = useState<string | null>(null);
+  const [showLibrary, setShowLibrary] = useState(false);
+  const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
+
+  // Get questions from library that aren't already added
+  const availableLibraryQuestions = QUESTION_LIBRARY.filter(lq => 
+    (lq.applicableEventTypes.includes(eventType) || lq.applicableEventTypes.includes('custom')) &&
+    !editableQuestions.some(eq => eq.prompt === lq.prompt)
+  );
 
   const handleStartEdit = (question: EditableQuestion) => {
     setEditingId(question.id);
@@ -72,15 +84,23 @@ export function EditQuestionsModal({
     setEditableQuestions(prev => prev.filter(q => q.id !== id));
   };
 
-  const handleAddQuestion = () => {
+  // Add question from library (no free text allowed)
+  const handleAddFromLibrary = (libraryQuestion: LibraryQuestion) => {
     const newQuestion: EditableQuestion = {
-      id: `q-new-${Date.now()}`,
-      prompt: 'New Question',
-      type: 'text',
-      required: true,
+      id: `q-${libraryQuestion.id}-${Date.now()}`,
+      ...toQuestionTemplate(libraryQuestion),
     };
     setEditableQuestions(prev => [...prev, newQuestion]);
-    setTimeout(() => handleStartEdit(newQuestion), 100);
+    setShowLibrary(false);
+  };
+
+  // Handle selecting a preset for options
+  const handleSelectPreset = (presetKey: string) => {
+    const options = OPTION_PRESETS[presetKey];
+    if (options) {
+      setEditOptions([...options]);
+      setSelectedPreset(presetKey);
+    }
   };
 
   const handleDragStart = (id: string) => {
@@ -171,43 +191,80 @@ export function EditQuestionsModal({
               >
                 {editingId === question.id ? (
                   <div className="space-y-3">
-                    <input
-                      type="text"
-                      value={editPrompt}
-                      onChange={(e) => setEditPrompt(e.target.value)}
-                      placeholder="Question text"
-                      autoFocus
-                      className="w-full bg-muted px-3 py-2 rounded-lg text-foreground outline-none
-                        focus:ring-2 focus:ring-primary"
-                    />
+                    {/* Question prompt - now a dropdown of predefined prompts */}
+                    <div className="space-y-1">
+                      <label className="text-xs text-muted-foreground">Question</label>
+                      <select
+                        value={editPrompt}
+                        onChange={(e) => {
+                          setEditPrompt(e.target.value);
+                          // Auto-set type and options if selecting from library
+                          const libQuestion = QUESTION_LIBRARY.find(q => q.prompt === e.target.value);
+                          if (libQuestion) {
+                            setEditType(libQuestion.type);
+                            setEditOptions(libQuestion.options || []);
+                          }
+                        }}
+                        className="w-full bg-muted px-3 py-2 rounded-lg text-foreground outline-none
+                          focus:ring-2 focus:ring-primary"
+                      >
+                        <option value={editPrompt}>{editPrompt}</option>
+                        {QUESTION_LIBRARY.filter(q => q.prompt !== editPrompt).map(q => (
+                          <option key={q.id} value={q.prompt}>{q.prompt}</option>
+                        ))}
+                      </select>
+                    </div>
                     
-                    <select
-                      value={editType}
-                      onChange={(e) => setEditType(e.target.value as QuestionTemplate['type'])}
-                      className="w-full bg-muted px-3 py-2 rounded-lg text-foreground outline-none
-                        focus:ring-2 focus:ring-primary"
-                    >
-                      <option value="text">Text Answer</option>
-                      <option value="boolean">Yes/No</option>
-                      <option value="single_select">Single Choice</option>
-                      <option value="multi_select">Multiple Choice</option>
-                      <option value="number">Number</option>
-                    </select>
+                    {/* Question type - no text option */}
+                    <div className="space-y-1">
+                      <label className="text-xs text-muted-foreground">Answer Type</label>
+                      <select
+                        value={editType}
+                        onChange={(e) => setEditType(e.target.value as QuestionTemplate['type'])}
+                        className="w-full bg-muted px-3 py-2 rounded-lg text-foreground outline-none
+                          focus:ring-2 focus:ring-primary"
+                      >
+                        <option value="boolean">Yes/No</option>
+                        <option value="single_select">Single Choice</option>
+                        <option value="multi_select">Multiple Choice</option>
+                        <option value="number">Number</option>
+                      </select>
+                    </div>
 
-                    {/* Options for select types */}
+                    {/* Options for select types - with preset picker */}
                     {['single_select', 'multi_select'].includes(editType) && (
                       <div className="space-y-2">
-                        <p className="text-xs text-muted-foreground">Options:</p>
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs text-muted-foreground">Options:</p>
+                          <select
+                            value={selectedPreset || ''}
+                            onChange={(e) => handleSelectPreset(e.target.value)}
+                            className="text-xs bg-muted px-2 py-1 rounded text-muted-foreground"
+                          >
+                            <option value="">Use preset...</option>
+                            <option value="dietary">Dietary</option>
+                            <option value="budget">Budget</option>
+                            <option value="transport">Transport</option>
+                            <option value="accommodation">Accommodation</option>
+                            <option value="days">Days</option>
+                            <option value="attendance">Attendance</option>
+                            <option value="yesnomaybe">Yes/No/Maybe</option>
+                          </select>
+                        </div>
                         {editOptions.map((option, index) => (
                           <div key={index} className="flex gap-2">
-                            <input
-                              type="text"
+                            <select
                               value={option}
                               onChange={(e) => handleUpdateOption(index, e.target.value)}
-                              placeholder={`Option ${index + 1}`}
                               className="flex-1 bg-muted px-3 py-2 rounded-lg text-foreground text-sm
                                 outline-none focus:ring-2 focus:ring-primary"
-                            />
+                            >
+                              <option value={option}>{option || `Option ${index + 1}`}</option>
+                              {/* Show common options that aren't already selected */}
+                              {Object.values(OPTION_PRESETS).flat()
+                                .filter((o, i, arr) => arr.indexOf(o) === i && !editOptions.includes(o))
+                                .map(o => <option key={o} value={o}>{o}</option>)}
+                            </select>
                             <button
                               onClick={() => handleRemoveOption(index)}
                               className="p-2 text-muted-foreground hover:text-destructive"
@@ -279,16 +336,58 @@ export function EditQuestionsModal({
               </motion.div>
             ))}
 
-            {/* Add Question Button */}
-            <button
-              onClick={handleAddQuestion}
-              className="w-full flex items-center justify-center gap-2 p-3 rounded-xl
-                border-2 border-dashed border-border/50 text-muted-foreground
-                hover:border-primary hover:text-primary transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              Add Question
-            </button>
+            {/* Add Question from Library */}
+            {!showLibrary ? (
+              <button
+                onClick={() => setShowLibrary(true)}
+                className="w-full flex items-center justify-center gap-2 p-3 rounded-xl
+                  border-2 border-dashed border-border/50 text-muted-foreground
+                  hover:border-primary hover:text-primary transition-colors"
+              >
+                <Library className="w-4 h-4" />
+                Add Question from Library
+              </button>
+            ) : (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                className="space-y-2"
+              >
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium text-foreground">Select a question:</p>
+                  <button
+                    onClick={() => setShowLibrary(false)}
+                    className="text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    Cancel
+                  </button>
+                </div>
+                <div className="max-h-48 overflow-y-auto space-y-1">
+                  {availableLibraryQuestions.length > 0 ? (
+                    availableLibraryQuestions.map(lq => (
+                      <button
+                        key={lq.id}
+                        onClick={() => handleAddFromLibrary(lq)}
+                        className="w-full text-left p-2 rounded-lg bg-muted/50 hover:bg-muted
+                          transition-colors group"
+                      >
+                        <p className="text-sm text-foreground group-hover:text-primary">
+                          {lq.prompt}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {questionTypeLabels[lq.type] || lq.type}
+                          {lq.options && ` • ${lq.options.length} options`}
+                        </p>
+                      </button>
+                    ))
+                  ) : (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      All available questions have been added
+                    </p>
+                  )}
+                </div>
+              </motion.div>
+            )}
           </div>
 
           {/* Footer */}
@@ -313,6 +412,7 @@ export function EditQuestionsModal({
     </AnimatePresence>
   );
 }
+
 
 
 
