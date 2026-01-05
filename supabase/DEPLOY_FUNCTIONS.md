@@ -30,6 +30,8 @@ npx supabase functions deploy generate-summary
 npx supabase functions deploy send-nudge
 npx supabase functions deploy create-checkout-session
 npx supabase functions deploy stripe-webhook
+npx supabase functions deploy send-otp
+npx supabase functions deploy verify-otp
 ```
 
 Or deploy all at once:
@@ -47,14 +49,16 @@ Ensure these secrets are configured:
 - `GOOGLE_AI_API_KEY` - Get from https://aistudio.google.com/
 - `TWILIO_ACCOUNT_SID` - Get from Twilio Console
 - `TWILIO_AUTH_TOKEN` - Get from Twilio Console
+- `TWILIO_PHONE_NUMBER` - Your Twilio phone number (E.164 format, e.g., +1234567890)
 - `STRIPE_SECRET_KEY` - Get from Stripe Dashboard
 - `STRIPE_WEBHOOK_SECRET` - Get from Stripe Dashboard > Webhooks
 - `RESEND_API_KEY` - Get from Resend Dashboard
+- `OTP_SECRET` - (Optional) Custom salt for OTP hashing
 
 ## Verification
 
 After deployment, go to Edge Functions in your Supabase Dashboard:
 https://supabase.com/dashboard/project/fauqcwrdkqwoatzptght/functions
 
-You should see all 6 functions listed and "Deployed" status.
+You should see all 8 functions listed and "Deployed" status.
 

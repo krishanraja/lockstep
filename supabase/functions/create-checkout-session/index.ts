@@ -236,6 +236,8 @@ serve(async (req: Request) => {
       mode: tierConfig.mode,
       success_url: `${successUrl}?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: cancelUrl,
+      // Enable Stripe's built-in promo code support
+      allow_promotion_codes: true,
       metadata: {
         supabase_user_id: user.id,
         tier,

@@ -5,10 +5,7 @@ import { motion } from 'framer-motion';
 import { 
   ChevronLeft, 
   Calendar, 
-  MapPin, 
-  MoreHorizontal,
-  Crown,
-  Copy,
+  MapPin,
   Check as CheckIcon
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -20,7 +17,9 @@ import {
   SmartActions,
   GuestGrid,
   TimelineView,
-  VoiceFAB
+  VoiceFAB,
+  EventActionsMenu,
+  EditEventModal
 } from '@/components/EventDetail';
 import { 
   canSendNudge, 
@@ -91,6 +90,7 @@ const EventDetail = () => {
   const [activeTab, setActiveTab] = useState<TabView>('overview');
   const [copiedLink, setCopiedLink] = useState(false);
   const [realtimeUpdateCounter, setRealtimeUpdateCounter] = useState(0);
+  const [showEditModal, setShowEditModal] = useState(false);
 
   const loadEventData = useCallback(async (eventId: string, cancelled: { current: boolean }) => {
     setLoadError(null);
@@ -363,9 +363,21 @@ const EventDetail = () => {
             <ChevronLeft className="w-5 h-5" />
             <span className="text-sm">Back</span>
           </button>
-          <button className="p-2 rounded-full hover:bg-muted transition-colors">
-            <MoreHorizontal className="w-5 h-5 text-muted-foreground" />
-          </button>
+          <EventActionsMenu
+            eventId={id!}
+            eventTitle={event?.title || ''}
+            eventStatus={event?.status || null}
+            onEdit={() => setShowEditModal(true)}
+            onExport={handleExport}
+            onArchive={() => {
+              // Reload event data after archive
+              if (id) {
+                const cancelled = { current: false };
+                loadEventData(id, cancelled);
+              }
+            }}
+            onDelete={() => navigate('/dashboard')}
+          />
         </div>
       </header>
 
@@ -557,6 +569,18 @@ const EventDetail = () => {
             if (user) {
               getEventUsage(id!, user.id).then(setEventUsage);
             }
+          }}
+        />
+      )}
+
+      {/* Edit Event Modal */}
+      {event && (
+        <EditEventModal
+          isOpen={showEditModal}
+          onClose={() => setShowEditModal(false)}
+          event={event}
+          onSave={(updatedEvent) => {
+            setEvent(updatedEvent);
           }}
         />
       )}
