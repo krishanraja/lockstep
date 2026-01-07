@@ -1,5 +1,5 @@
 /**
- * Generate all favicon variants from lockstep-icon.png
+ * Generate all favicon variants from lockstep-favicon-2026.png
  * Run with: node scripts/generate-favicons.js
  */
 
@@ -11,10 +11,10 @@ import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const publicDir = join(__dirname, '..', 'public');
-const sourceIcon = join(publicDir, 'lockstep-icon.png');
+const sourceIcon = join(publicDir, 'lockstep-favicon-2026.png');
 
 async function generateFavicons() {
-  console.log('Generating favicons from lockstep-icon.png...\n');
+  console.log('Generating favicons from lockstep-favicon-2026.png...\n');
 
   try {
     // Read the source image
@@ -28,6 +28,7 @@ async function generateFavicons() {
     const sizes = [
       { name: 'favicon-16x16.png', size: 16 },
       { name: 'favicon-32x32.png', size: 32 },
+      { name: 'lockstep-icon.png', size: 32 },
       { name: 'apple-touch-icon.png', size: 180 },
       { name: 'icon-192.png', size: 192 },
       { name: 'icon-512.png', size: 512 },
@@ -74,6 +75,7 @@ async function generateFavicons() {
     console.log('  - favicon.ico (for legacy browsers)');
     console.log('  - favicon-16x16.png');
     console.log('  - favicon-32x32.png');
+    console.log('  - lockstep-icon.png (32x32)');
     console.log('  - apple-touch-icon.png (180x180 for iOS)');
     console.log('  - icon-192.png (for Android/Chrome)');
     console.log('  - icon-512.png (for PWA install)');
