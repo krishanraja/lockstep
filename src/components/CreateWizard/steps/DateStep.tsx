@@ -29,6 +29,7 @@ export function DateStep({
   const [showCustomPicker, setShowCustomPicker] = useState(false);
   const [customStart, setCustomStart] = useState<Date | null>(null);
   const [customEnd, setCustomEnd] = useState<Date | null>(null);
+  const [dateError, setDateError] = useState<string | null>(null);
 
   // Generate weekend options
   const getWeekendOptions = (): WeekendOption[] => {
@@ -72,13 +73,50 @@ export function DateStep({
     onDateRangeChange({ start: option.start, end: option.end });
   };
 
+  const validateCustomDates = (start: Date | null, end: Date | null) => {
+    if (!start || !end) {
+      setDateError(null);
+      return false;
+    }
+    
+    if (end < start) {
+      setDateError('End date must be after start date');
+      return false;
+    }
+    
+    if (start < new Date()) {
+      setDateError('Start date must be in the future');
+      return false;
+    }
+    
+    setDateError(null);
+    return true;
+  };
+
+  const handleCustomStartChange = (value: string) => {
+    const newStart = new Date(value);
+    setCustomStart(newStart);
+    if (customEnd) {
+      validateCustomDates(newStart, customEnd);
+    }
+  };
+
+  const handleCustomEndChange = (value: string) => {
+    const newEnd = new Date(value);
+    setCustomEnd(newEnd);
+    if (customStart) {
+      validateCustomDates(customStart, newEnd);
+    }
+  };
+
   const handleCustomConfirm = () => {
-    if (customStart && customEnd) {
+    if (customStart && customEnd && validateCustomDates(customStart, customEnd)) {
       onDateRangeChange({ 
         start: customStart, 
-        end: customEnd > customStart ? customEnd : customStart 
+        end: customEnd
       });
       setShowCustomPicker(false);
+      setDateError(null);
     }
   };
 
@@ -214,9 +252,11 @@ export function DateStep({
                   <input
                     type="date"
                     value={customStart ? format(customStart, 'yyyy-MM-dd') : ''}
-                    onChange={(e) => setCustomStart(new Date(e.target.value))}
+                    onChange={(e) => handleCustomStartChange(e.target.value)}
                     min={format(new Date(), 'yyyy-MM-dd')}
-                    className="w-full p-4 rounded-xl bg-card border border-border focus:border-primary outline-none"
+                    className={`w-full p-4 rounded-xl bg-card border focus:border-primary outline-none ${
+                      dateError ? 'border-destructive' : 'border-border'
+                    }`}
                   />
                 </div>
                 <div>
@@ -224,16 +264,21 @@ export function DateStep({
                   <input
                     type="date"
                     value={customEnd ? format(customEnd, 'yyyy-MM-dd') : ''}
-                    onChange={(e) => setCustomEnd(new Date(e.target.value))}
+                    onChange={(e) => handleCustomEndChange(e.target.value)}
                     min={customStart ? format(customStart, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd')}
-                    className="w-full p-4 rounded-xl bg-card border border-border focus:border-primary outline-none"
+                    className={`w-full p-4 rounded-xl bg-card border focus:border-primary outline-none ${
+                      dateError ? 'border-destructive' : 'border-border'
+                    }`}
                   />
+                  {dateError && (
+                    <p className="text-sm text-destructive mt-2">{dateError}</p>
+                  )}
                 </div>
               </div>
               
               <button
                 onClick={handleCustomConfirm}
-                disabled={!customStart || !customEnd}
+                disabled={!customStart || !customEnd || !!dateError}
                 className="w-full max-w-sm py-4 rounded-2xl
                   bg-primary text-primary-foreground font-medium
                   disabled:opacity-50 disabled:cursor-not-allowed

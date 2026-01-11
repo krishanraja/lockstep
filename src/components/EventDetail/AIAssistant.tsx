@@ -63,6 +63,11 @@ export const AIAssistant = ({
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [insights, setInsights] = useState<Insight[]>([]);
+  const [lastMessageTime, setLastMessageTime] = useState(0);
+  const [rateLimitError, setRateLimitError] = useState<string | null>(null);
+  
+  // Rate limit: max 1 message per 2 seconds
+  const RATE_LIMIT_MS = 2000;
 
   // Generate proactive insights based on event state
   useEffect(() => {
@@ -113,12 +118,32 @@ export const AIAssistant = ({
   }, [stats, onAction]);
 
   const handleSendMessage = async () => {
-    if (!input.trim() || isLoading) return;
+    const trimmedInput = input.trim();
+    
+    // Validation
+    if (!trimmedInput || isLoading) return;
+    
+    if (trimmedInput.length > 500) {
+      setRateLimitError('Message is too long. Please keep it under 500 characters.');
+      return;
+    }
+    
+    // Rate limiting
+    const now = Date.now();
+    const timeSinceLastMessage = now - lastMessageTime;
+    if (timeSinceLastMessage < RATE_LIMIT_MS) {
+      const waitTime = Math.ceil((RATE_LIMIT_MS - timeSinceLastMessage) / 1000);
+      setRateLimitError(`Please wait ${waitTime} second${waitTime > 1 ? 's' : ''} before sending another message.`);
+      return;
+    }
+    
+    setRateLimitError(null);
+    setLastMessageTime(now);
 
     const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
-      content: input.trim(),
+      content: trimmedInput,
       timestamp: new Date(),
     };
 
@@ -309,14 +334,25 @@ export const AIAssistant = ({
                 )}
               </div>
 
+              {/* Rate limit error */}
+              {rateLimitError && (
+                <div className="px-4 py-2 border-t border-border/50 bg-maybe/10 border-b border-maybe/20">
+                  <p className="text-xs text-maybe">{rateLimitError}</p>
+                </div>
+              )}
+
               {/* Input */}
               <div className="border-t border-border/50 p-3 flex gap-2">
                 <input
                   type="text"
                   value={input}
-                  onChange={(e) => setInput(e.target.value)}
+                  onChange={(e) => {
+                    setInput(e.target.value);
+                    setRateLimitError(null);
+                  }}
                   onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
                   placeholder="Ask about attendance, send nudges..."
+                  maxLength={500}
                   className="flex-1 px-4 py-2 rounded-xl bg-muted border-none outline-none
                     focus:ring-2 focus:ring-primary text-foreground text-sm"
                 />
@@ -329,6 +365,11 @@ export const AIAssistant = ({
                   <Send className="w-4 h-4" />
                 </button>
               </div>
+              {input.length > 400 && (
+                <div className="px-3 pb-2 text-xs text-muted-foreground text-right">
+                  {input.length}/500 characters
+                </div>
+              )}
             </div>
           </motion.div>
         )}

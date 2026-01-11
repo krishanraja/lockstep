@@ -259,6 +259,10 @@ export const PhoneVerification = ({
                 onChange={(value) => {
                   setOtp(value);
                   setError(null);
+                  // Auto-submit when 6 digits entered
+                  if (value.length === 6 && !isLoading) {
+                    handleVerifyOTP();
+                  }
                 }}
               >
                 <InputOTPGroup>

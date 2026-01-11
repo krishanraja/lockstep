@@ -69,6 +69,7 @@ export interface WizardState {
   locationText: string;
   aiDescription: string;
   isGeneratingDescription: boolean;
+  descriptionError: string | null;
   guests: string[]; // Phone numbers or names
   // Custom edits to template defaults
   customBlocks?: BlockTemplate[];
@@ -88,6 +89,7 @@ export const initialWizardState: WizardState = {
   locationText: '',
   aiDescription: '',
   isGeneratingDescription: false,
+  descriptionError: null,
   guests: [],
 };
 

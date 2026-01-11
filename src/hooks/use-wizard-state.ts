@@ -98,6 +98,7 @@ export function loadWizardState(): WizardState | null {
       locationText: parsed.locationText,
       aiDescription: parsed.aiDescription,
       isGeneratingDescription: false,
+      descriptionError: null,
       guests: parsed.guests,
       customBlocks: parsed.customBlocks,
       customCheckpoints: parsed.customCheckpoints,
@@ -203,6 +204,15 @@ export function useWizardState() {
       ...prev,
       aiDescription,
       isGeneratingDescription: false,
+      descriptionError: null,
+    }));
+  }, []);
+
+  const setDescriptionError = useCallback((error: string | null) => {
+    setState((prev) => ({
+      ...prev,
+      descriptionError: error,
+      isGeneratingDescription: false,
     }));
   }, []);
 
@@ -305,6 +315,7 @@ export function useWizardState() {
     setLocationText,
     setAIDescription,
     setGeneratingDescription,
+    setDescriptionError,
     setGuests,
     setCustomBlocks,
     setCustomCheckpoints,

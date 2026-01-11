@@ -9,9 +9,11 @@ const passwordSchema = z.string().min(6, "Password must be at least 6 characters
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
+  const [authMethod, setAuthMethod] = useState<'password' | 'magic-link'>('password');
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -25,6 +27,22 @@ const Auth = () => {
     }
     return '/dashboard';
   }, [searchParams]);
+
+  // Load remembered email from localStorage
+  useEffect(() => {
+    const rememberedEmail = localStorage.getItem('lockstep_last_email');
+    if (rememberedEmail) {
+      setEmail(rememberedEmail);
+    }
+  }, []);
+
+  // Auto-focus email input
+  useEffect(() => {
+    const emailInput = document.getElementById('email');
+    if (emailInput && !email) {
+      setTimeout(() => emailInput.focus(), 100);
+    }
+  }, [email]);
 
   // Check if already logged in
   useEffect(() => {
@@ -65,42 +83,97 @@ const Auth = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!validateForm()) return;
+    // Validate email for both methods
+    const emailResult = emailSchema.safeParse(email);
+    if (!emailResult.success) {
+      setErrors({ email: emailResult.error.errors[0].message });
+      return;
+    }
+
+    // Validate password only for password method
+    if (authMethod === 'password') {
+      if (!validateForm()) return;
+    }
 
     setIsLoading(true);
+    setShowSuccess(false);
+    setErrors({});
 
     try {
-      if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({
+      if (authMethod === 'magic-link') {
+        // Send magic link
+        const { error } = await supabase.auth.signInWithOtp({
           email,
-          password,
-        });
-        if (error) throw error;
-        // Navigation happens automatically via onAuthStateChange
-      } else {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
           options: {
-            // Redirect to the returnTo path after email verification
             emailRedirectTo: `${window.location.origin}${returnTo}`,
           },
         });
         if (error) throw error;
-        // Show success message inline or navigate
+        
+        // Remember email
+        localStorage.setItem('lockstep_last_email', email);
+        
+        // Show success message
+        setShowSuccess(true);
+        setIsLoading(false);
+      } else if (isLogin) {
+        // Password login
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        if (error) {
+          // Auto-detect existing user and switch to login mode
+          if (error.message.includes("User already registered") || error.message.includes("Email not confirmed")) {
+            setIsLogin(true);
+            setErrors({ email: "This email is already registered. Please sign in instead." });
+            setIsLoading(false);
+            return;
+          }
+          throw error;
+        }
+        // Remember email
+        localStorage.setItem('lockstep_last_email', email);
+        // Navigation happens automatically via onAuthStateChange
+      } else {
+        // Password signup
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            emailRedirectTo: `${window.location.origin}${returnTo}`,
+          },
+        });
+        if (error) {
+          // Auto-detect existing user and switch to login mode
+          if (error.message.includes("User already registered")) {
+            setIsLogin(true);
+            setErrors({ email: "This email is already registered. Please sign in instead." });
+            setIsLoading(false);
+            return;
+          }
+          throw error;
+        }
+        
+        // Remember email
+        localStorage.setItem('lockstep_last_email', email);
+        
+        // Show success message for signup
+        setShowSuccess(true);
         setErrors({});
       }
     } catch (error: any) {
       let message = error.message;
       if (error.message.includes("User already registered")) {
         message = "An account with this email already exists. Try signing in instead.";
+        setIsLogin(true);
       } else if (error.message.includes("Invalid login credentials")) {
         message = "Invalid email or password. Please try again.";
       }
       
       // Set error state for inline display
-      if (isLogin) {
-        setErrors({ password: message });
+      if (isLogin || authMethod === 'magic-link') {
+        setErrors({ email: message });
       } else {
         setErrors({ email: message });
       }
@@ -136,6 +209,60 @@ const Auth = () => {
           </p>
         </div>
 
+        {/* Success message */}
+        {showSuccess && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-4 p-4 rounded-lg bg-confirmed/10 border border-confirmed/20"
+          >
+            <p className="text-sm text-confirmed font-medium mb-1">
+              {authMethod === 'magic-link' 
+                ? "Check your email!" 
+                : "Account created! Check your email to verify your account."}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {authMethod === 'magic-link'
+                ? "We've sent you a magic link. Click it to sign in instantly."
+                : "Click the verification link in your email to complete signup."}
+            </p>
+          </motion.div>
+        )}
+
+        {/* Auth method toggle */}
+        {isLogin && (
+          <div className="mb-4 flex gap-2 p-1 bg-muted rounded-lg">
+            <button
+              type="button"
+              onClick={() => {
+                setAuthMethod('password');
+                setErrors({});
+              }}
+              className={`flex-1 py-2 rounded-md text-sm font-medium transition-all ${
+                authMethod === 'password'
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              Password
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setAuthMethod('magic-link');
+                setErrors({});
+              }}
+              className={`flex-1 py-2 rounded-md text-sm font-medium transition-all ${
+                authMethod === 'magic-link'
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              Magic Link
+            </button>
+          </div>
+        )}
+
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -154,40 +281,57 @@ const Auth = () => {
                 errors.email ? "border-destructive" : "border-border"
               }`}
               placeholder="you@example.com"
+              autoComplete="email"
             />
             {errors.email && (
               <p className="text-sm text-destructive mt-1">{errors.email}</p>
             )}
           </div>
 
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium mb-1">
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => {
-                setPassword(e.target.value);
-                setErrors((prev) => ({ ...prev, password: undefined }));
-              }}
-              className={`w-full px-4 py-3 rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-primary transition-all ${
-                errors.password ? "border-destructive" : "border-border"
-              }`}
-              placeholder="••••••••"
-            />
-            {errors.password && (
-              <p className="text-sm text-destructive mt-1">{errors.password}</p>
-            )}
-          </div>
+          {authMethod === 'password' && (
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium mb-1">
+                Password
+              </label>
+              <input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setErrors((prev) => ({ ...prev, password: undefined }));
+                }}
+                className={`w-full px-4 py-3 rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-primary transition-all ${
+                  errors.password ? "border-destructive" : "border-border"
+                }`}
+                placeholder="••••••••"
+                autoComplete={isLogin ? "current-password" : "new-password"}
+              />
+              {errors.password && (
+                <p className="text-sm text-destructive mt-1">{errors.password}</p>
+              )}
+              {!isLogin && password.length > 0 && (
+                <p className={`text-xs mt-1 ${
+                  password.length >= 6 ? 'text-confirmed' : 'text-muted-foreground'
+                }`}>
+                  {password.length < 6 ? 'At least 6 characters' : '✓ Password strength: Good'}
+                </p>
+              )}
+            </div>
+          )}
 
           <button
             type="submit"
             disabled={isLoading}
             className="w-full py-3 rounded-lg bg-primary text-primary-foreground font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
           >
-            {isLoading ? "Loading..." : isLogin ? "Sign In" : "Sign Up"}
+            {isLoading 
+              ? "Loading..." 
+              : authMethod === 'magic-link'
+                ? "Send Magic Link"
+                : isLogin 
+                  ? "Sign In" 
+                  : "Sign Up"}
           </button>
         </form>
 

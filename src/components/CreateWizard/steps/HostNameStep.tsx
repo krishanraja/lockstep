@@ -103,6 +103,11 @@ export function HostNameStep({
               py-3 placeholder:text-muted-foreground/50
               transition-colors duration-200"
           />
+          {hostName.trim() && (
+            <p className="text-xs text-muted-foreground mt-2 text-center">
+              Press Enter to continue
+            </p>
+          )}
 
           {/* Generated event name */}
           <motion.div

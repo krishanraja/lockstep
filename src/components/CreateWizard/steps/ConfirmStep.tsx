@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Check, RefreshCw, Calendar, Users, Bell, Settings, ChevronRight, Camera } from 'lucide-react';
+import { Check, RefreshCw, Calendar, Users, Bell, Settings, ChevronRight, Camera, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import type { EventTemplate, BlockTemplate, CheckpointTemplate, QuestionTemplate } from '@/data/templates/types';
 import { EditTimeBlocksModal } from '../components/EditTimeBlocksModal';
@@ -15,6 +15,7 @@ interface ConfirmStepProps {
   locationText: string;
   aiDescription: string;
   isGeneratingDescription: boolean;
+  descriptionError: string | null;
   onRegenerateDescription: () => void;
   onCustomize: () => void;
   onConfirm: () => void;
@@ -37,6 +38,7 @@ export function ConfirmStep({
   locationText,
   aiDescription,
   isGeneratingDescription,
+  descriptionError,
   onRegenerateDescription,
   onCustomize,
   onConfirm,
@@ -153,6 +155,26 @@ export function ConfirmStep({
             <div className="flex items-center justify-center py-4">
               <RefreshCw className="w-5 h-5 text-primary animate-spin mr-2" />
               <span className="text-sm text-muted-foreground">Writing description...</span>
+            </div>
+          ) : descriptionError ? (
+            <div className="space-y-3">
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-maybe/10 border border-maybe/20">
+                <AlertCircle className="w-4 h-4 text-maybe mt-0.5 flex-shrink-0" />
+                <div className="flex-1">
+                  <p className="text-xs text-muted-foreground mb-2">{descriptionError}</p>
+                  <p className="text-foreground text-sm leading-relaxed">
+                    "{aiDescription || 'Your event description will appear here...'}"
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={onRegenerateDescription}
+                className="w-full py-2 rounded-lg bg-primary/10 text-primary text-sm font-medium
+                  flex items-center justify-center gap-2 hover:bg-primary/20 transition-colors"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Retry AI Description
+              </button>
             </div>
           ) : (
             <>

@@ -53,6 +53,7 @@ export function CreateWizard() {
     setLocationText,
     setAIDescription,
     setGeneratingDescription,
+    setDescriptionError,
     setGuests,
     setCustomBlocks,
     setCustomCheckpoints,
@@ -230,6 +231,7 @@ export function CreateWizard() {
     }
 
     setGeneratingDescription(true);
+    setDescriptionError(null);
 
     try {
       // Try to call the edge function, fall back to template-based description
@@ -244,13 +246,15 @@ export function CreateWizard() {
       });
 
       if (error || !data?.description) {
-        // Fallback description with variety
+        // Show error but still use fallback
+        setDescriptionError('AI description generation failed. Using a default description.');
         setAIDescription(getFallbackDescription());
       } else {
         setAIDescription(data.description);
       }
-    } catch (err) {
-      // Use fallback description on any error
+    } catch (err: any) {
+      // Show error but still use fallback
+      setDescriptionError('AI description generation failed. Using a default description.');
       setAIDescription(getFallbackDescription());
     } finally {
       setGeneratingDescription(false);
@@ -749,6 +753,7 @@ export function CreateWizard() {
             locationText={state.locationText}
             aiDescription={state.aiDescription}
             isGeneratingDescription={state.isGeneratingDescription}
+            descriptionError={state.descriptionError}
             onRegenerateDescription={handleGenerateDescription}
             onCustomize={() => {
               // Navigate back to host step to allow editing all details

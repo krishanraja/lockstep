@@ -89,6 +89,7 @@ const EventDetail = () => {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabView>('overview');
   const [copiedLink, setCopiedLink] = useState(false);
+  const [shareError, setShareError] = useState<string | null>(null);
   const [realtimeUpdateCounter, setRealtimeUpdateCounter] = useState(0);
   const [showEditModal, setShowEditModal] = useState(false);
 
@@ -269,24 +270,36 @@ const EventDetail = () => {
   };
 
   const handleShare = async () => {
-    // Copy the first guest's RSVP link or a generic invite link
-    const firstGuest = guests[0];
+    setShareError(null);
+    
+    if (guests.length === 0) {
+      // Show message that guests need to be added first
+      setShareError('Please add guests to your event before sharing. Go to the Guests tab to add guests.');
+      return;
+    }
+    
+    // Copy the first guest's RSVP link as an example
+    const firstGuest = guests.find(g => g.magic_token);
     if (firstGuest?.magic_token) {
       const link = `${window.location.origin}/rsvp/${firstGuest.magic_token}`;
       await navigator.clipboard.writeText(link);
       setCopiedLink(true);
       setTimeout(() => setCopiedLink(false), 2000);
     } else {
-      // No guests yet - copy event link
-      const link = `${window.location.origin}/events/${id}`;
-      await navigator.clipboard.writeText(link);
-      setCopiedLink(true);
-      setTimeout(() => setCopiedLink(false), 2000);
+      setShareError('No RSVP links available. Please add guests with contact information first.');
     }
   };
 
+  // Escape CSV field (handles commas, quotes, newlines)
+  const escapeCsvField = (field: string): string => {
+    if (field.includes(',') || field.includes('"') || field.includes('\n')) {
+      return `"${field.replace(/"/g, '""')}"`;
+    }
+    return field;
+  };
+
   const handleExport = () => {
-    // Generate CSV
+    // Generate CSV with proper escaping
     const headers = ['Name', 'Email', 'Phone', 'Status', ...blocks.map(b => b.name)];
     const rows = guests.map(guest => {
       const guestResponses = blocks.map(block => {
@@ -294,16 +307,20 @@ const EventDetail = () => {
         return rsvp?.response || 'No response';
       });
       return [
-        guest.name,
-        guest.email || '',
-        guest.phone || '',
-        guest.status || 'pending',
-        ...guestResponses,
+        escapeCsvField(guest.name),
+        escapeCsvField(guest.email || ''),
+        escapeCsvField(guest.phone || ''),
+        escapeCsvField(guest.status || 'pending'),
+        ...guestResponses.map(r => escapeCsvField(r)),
       ];
     });
 
-    const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
+    const csv = [
+      headers.map(h => escapeCsvField(h)).join(','),
+      ...rows.map(r => r.join(','))
+    ].join('\n');
+    
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -313,8 +330,8 @@ const EventDetail = () => {
   };
 
   const handleScheduleReminder = () => {
-    // TODO: Implement scheduled reminders
-    console.log('Schedule reminder clicked');
+    // Show message that this feature is coming soon
+    setShareError('Scheduled reminders are coming soon! For now, use the "Nudge" button to send reminders manually.');
   };
 
   const daysUntilEvent = event?.start_date 
@@ -487,6 +504,17 @@ const EventDetail = () => {
                       : undefined}
                   />
                 </div>
+              )}
+
+              {/* Share error */}
+              {shareError && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="p-3 rounded-xl bg-destructive/10 border border-destructive/20"
+                >
+                  <p className="text-sm text-destructive">{shareError}</p>
+                </motion.div>
               )}
 
               {/* Link copied toast */}

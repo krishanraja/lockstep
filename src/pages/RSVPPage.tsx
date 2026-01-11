@@ -64,6 +64,9 @@ const RSVPPage = () => {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [responses, setResponses] = useState<BlockRSVP[]>([]);
   const [answers, setAnswers] = useState<QuestionAnswer[]>([]);
+  
+  // Auto-save key for localStorage
+  const autoSaveKey = token ? `rsvp_autosave_${token}` : null;
 
   const loadRSVPData = useCallback(async (magicToken: string, cancelled: { current: boolean }) => {
     setIsLoading(true);
@@ -165,6 +168,23 @@ const RSVPPage = () => {
           questionId: a.question_id,
           value: a.value,
         })));
+      } else {
+        // Try to load from auto-save
+        const autoSaveKey = `rsvp_autosave_${magicToken}`;
+        try {
+          const saved = localStorage.getItem(autoSaveKey);
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            if (parsed.answers) {
+              setAnswers(parsed.answers);
+            }
+            if (parsed.responses) {
+              setResponses(parsed.responses);
+            }
+          }
+        } catch (err) {
+          console.warn('Failed to load auto-saved RSVP:', err);
+        }
       }
 
       // Check for deep link focus
@@ -197,19 +217,66 @@ const RSVPPage = () => {
   }, [token, loadRSVPData]);
 
   const handleBlockResponse = (blockId: string, response: RSVPResponse) => {
-    setResponses((prev) => 
-      prev.map((r) => r.blockId === blockId ? { ...r, response } : r)
-    );
+    setResponses((prev) => {
+      const updated = prev.map((r) => r.blockId === blockId ? { ...r, response } : r);
+      // Auto-save
+      if (autoSaveKey) {
+        try {
+          localStorage.setItem(autoSaveKey, JSON.stringify({
+            responses: updated,
+            answers,
+            timestamp: Date.now(),
+          }));
+        } catch (err) {
+          console.warn('Failed to auto-save RSVP:', err);
+        }
+      }
+      return updated;
+    });
   };
 
   const handleQuestionAnswer = (questionId: string, value: any) => {
-    setAnswers((prev) =>
-      prev.map((a) => a.questionId === questionId ? { ...a, value } : a)
-    );
+    setAnswers((prev) => {
+      const updated = prev.map((a) => a.questionId === questionId ? { ...a, value } : a);
+      // Auto-save
+      if (autoSaveKey) {
+        try {
+          localStorage.setItem(autoSaveKey, JSON.stringify({
+            responses,
+            answers: updated,
+            timestamp: Date.now(),
+          }));
+        } catch (err) {
+          console.warn('Failed to auto-save RSVP:', err);
+        }
+      }
+      return updated;
+    });
+  };
+  
+  // Validate form before submit
+  const validateForm = (): string | null => {
+    // Check required questions
+    for (const question of questions) {
+      if (question.required) {
+        const answer = answers.find(a => a.questionId === question.id);
+        if (!answer || answer.value === null || answer.value === '') {
+          return `Please answer the required question: "${question.prompt}"`;
+        }
+      }
+    }
+    return null;
   };
 
   const handleSubmit = async () => {
     if (!guest) return;
+
+    // Client-side validation
+    const validationError = validateForm();
+    if (validationError) {
+      setSubmitError(validationError);
+      return;
+    }
 
     setIsSubmitting(true);
     setSubmitError(null);
@@ -251,6 +318,11 @@ const RSVPPage = () => {
         .from('guests')
         .update({ status: 'responded' })
         .eq('id', guest.id);
+
+      // Clear auto-save on successful submit
+      if (autoSaveKey) {
+        localStorage.removeItem(autoSaveKey);
+      }
 
       setStep('complete');
     } catch (err: any) {

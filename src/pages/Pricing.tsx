@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Check, Sparkles, Users, MessageSquare, Zap, BarChart3, ArrowRight } from 'lucide-react';
@@ -167,6 +167,9 @@ const Pricing = () => {
   const [currentTier, setCurrentTier] = useState<PricingTier>('free');
   const [isLoading, setIsLoading] = useState(false);
   const [loadingTier, setLoadingTier] = useState<PricingTier | null>(null);
+  
+  // Get tier from URL params (preserved after auth redirect)
+  const tierFromUrl = searchParams.get('tier') as PricingTier | null;
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -181,6 +184,23 @@ const Pricing = () => {
 
     checkAuth();
   }, []);
+  
+  // Auto-select tier from URL if present (after auth redirect)
+  const hasAutoSelectedRef = useRef(false);
+  useEffect(() => {
+    if (tierFromUrl && ['pro', 'wedding', 'business', 'annual_pro'].includes(tierFromUrl) && user && !isLoading && !hasAutoSelectedRef.current) {
+      // Only auto-select once, if user is logged in and we haven't already selected
+      if (currentTier === 'free' && loadingTier === null) {
+        hasAutoSelectedRef.current = true;
+        // Small delay to ensure UI is ready, then auto-select
+        const timer = setTimeout(() => {
+          handleSelectTier(tierFromUrl);
+        }, 500);
+        return () => clearTimeout(timer);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tierFromUrl, user]);
 
   const handleSelectTier = async (tier: PricingTier) => {
     if (tier === 'free') {
@@ -189,11 +209,11 @@ const Pricing = () => {
     }
 
     if (!user) {
-      // Redirect to auth with return URL
+      // Redirect to auth with return URL, preserving tier selection
       const returnUrl = eventId 
         ? `/pricing?event=${eventId}&tier=${tier}`
         : `/pricing?tier=${tier}`;
-      navigate(`/auth?redirect=${encodeURIComponent(returnUrl)}`);
+      navigate(`/auth?returnTo=${encodeURIComponent(returnUrl)}`);
       return;
     }
 

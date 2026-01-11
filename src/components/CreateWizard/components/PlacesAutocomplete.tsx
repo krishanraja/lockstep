@@ -35,6 +35,7 @@ export function PlacesAutocomplete({
   const [mapLoading, setMapLoading] = useState(false);
   const [mapError, setMapError] = useState(false);
   const [isGeocoding, setIsGeocoding] = useState(false);
+  const [geocodeError, setGeocodeError] = useState<string | null>(null);
   const geocodeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -93,24 +94,34 @@ export function PlacesAutocomplete({
 
   // Geocode address when user has entered text but no coordinates
   const tryGeocodeAddress = useCallback(async (address: string) => {
-    if (!address.trim() || !googleAvailable) return;
+    if (!address.trim() || !googleAvailable) {
+      setGeocodeError(null);
+      return;
+    }
     
     // Don't geocode if we already have valid coordinates for this address
-    if (location && location.formattedAddress === address) return;
+    if (location && location.formattedAddress === address) {
+      setGeocodeError(null);
+      return;
+    }
     
     console.log('[PlacesAutocomplete] Attempting to geocode:', address);
     setIsGeocoding(true);
+    setGeocodeError(null);
     
     try {
       const result = await geocodeAddress(address);
       if (result) {
         console.log('[PlacesAutocomplete] Geocoding successful:', result);
         onLocationSelect(result, result.formattedAddress);
+        setGeocodeError(null);
       } else {
         console.warn('[PlacesAutocomplete] Geocoding returned no results for:', address);
+        setGeocodeError('Could not find coordinates for this location. You can still continue, but map features may be limited.');
       }
     } catch (err) {
       console.error('[PlacesAutocomplete] Geocoding failed:', err);
+      setGeocodeError('Could not verify location. You can still continue, but map features may be limited.');
     } finally {
       setIsGeocoding(false);
     }
@@ -183,6 +194,18 @@ export function PlacesAutocomplete({
           autoComplete="off"
         />
       </div>
+
+      {/* Geocode error warning */}
+      {geocodeError && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mt-3 p-3 rounded-xl bg-maybe/10 border border-maybe/20 flex items-start gap-2"
+        >
+          <span className="text-maybe text-sm">⚠️</span>
+          <p className="text-xs text-muted-foreground flex-1">{geocodeError}</p>
+        </motion.div>
+      )}
 
       {/* Map preview */}
       <AnimatePresence>

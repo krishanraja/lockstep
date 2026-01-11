@@ -64,6 +64,26 @@ function normalizePhoneNumber(phone: string): string {
   return cleaned;
 }
 
+// Validate phone number format
+function isValidPhoneNumber(phone: string): boolean {
+  // Check if it's a phone number (contains digits, may have + at start)
+  const phonePattern = /^\+?[\d\s()-]+$/;
+  if (!phonePattern.test(phone)) return false;
+  
+  // Remove all non-digits except + at start
+  const digits = phone.replace(/[^\d+]/g, '');
+  // Phone should have at least 7 digits (minimum valid phone number)
+  const digitCount = digits.replace('+', '').length;
+  return digitCount >= 7 && digitCount <= 15;
+}
+
+// Check if string looks like a phone number
+function looksLikePhone(guest: string): boolean {
+  // If it contains mostly digits and +, spaces, dashes, parentheses, it's likely a phone
+  const phoneChars = guest.replace(/[^\d+\s()-]/g, '').length;
+  return phoneChars >= guest.length * 0.7 && /[\d+]/.test(guest);
+}
+
 export function GuestsStep({
   eventName,
   guests,
@@ -81,6 +101,7 @@ export function GuestsStep({
   const [inputValue, setInputValue] = useState('');
   const [isImporting, setIsImporting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
+  const [validationErrors, setValidationErrors] = useState<Map<number, string>>(new Map());
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -98,7 +119,23 @@ export function GuestsStep({
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
     setInputValue(value);
-    onGuestsChange(parseGuestInput(value));
+    const parsed = parseGuestInput(value);
+    
+    // Validate each guest entry
+    const errors = new Map<number, string>();
+    parsed.forEach((guest, index) => {
+      // Check if it looks like a phone number
+      if (looksLikePhone(guest)) {
+        // Extract phone part (might be "Name: Phone" format)
+        const phonePart = guest.includes(':') ? guest.split(':')[1].trim() : guest;
+        if (!isValidPhoneNumber(phonePart)) {
+          errors.set(index, 'Invalid phone number format');
+        }
+      }
+    });
+    
+    setValidationErrors(errors);
+    onGuestsChange(parsed);
     setImportError(null);
   };
 
@@ -230,27 +267,40 @@ John Smith"
             
             {/* Guest preview */}
             <div className="flex flex-wrap gap-2">
-              {guests.slice(0, 5).map((guest, index) => (
-                <div
-                  key={index}
-                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full
-                    bg-primary/10 text-primary text-xs"
-                >
-                  <span className="max-w-[120px] truncate">{guest}</span>
-                  <button
-                    onClick={() => handleRemoveGuest(index)}
-                    className="hover:bg-primary/20 rounded-full p-0.5 transition-colors"
+              {guests.slice(0, 5).map((guest, index) => {
+                const hasError = validationErrors.has(index);
+                return (
+                  <div
+                    key={index}
+                    className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs ${
+                      hasError
+                        ? 'bg-destructive/10 text-destructive border border-destructive/20'
+                        : 'bg-primary/10 text-primary'
+                    }`}
+                    title={hasError ? validationErrors.get(index) : undefined}
                   >
-                    <X className="w-3 h-3" />
-                  </button>
-                </div>
-              ))}
+                    <span className="max-w-[120px] truncate">{guest}</span>
+                    {hasError && <span className="text-destructive">⚠</span>}
+                    <button
+                      onClick={() => handleRemoveGuest(index)}
+                      className="hover:bg-primary/20 rounded-full p-0.5 transition-colors"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                );
+              })}
               {guests.length > 5 && (
                 <span className="px-3 py-1.5 text-xs text-muted-foreground">
                   +{guests.length - 5} more
                 </span>
               )}
             </div>
+            {validationErrors.size > 0 && (
+              <p className="text-xs text-destructive mt-2">
+                Some phone numbers appear invalid. Please check the format.
+              </p>
+            )}
           </motion.div>
         )}
 
