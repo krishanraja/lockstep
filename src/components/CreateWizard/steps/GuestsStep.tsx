@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Send, Users, X, Loader2, UserPlus, RefreshCw, AlertCircle } from 'lucide-react';
+import { Send, Users, X, Loader2, UserPlus, RefreshCw, AlertCircle, Clock } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import type { OperationProgress } from '@/lib/async-utils';
 import { progressMessages } from '@/lib/async-utils';
 
@@ -102,18 +103,84 @@ export function GuestsStep({
   const [isImporting, setIsImporting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<Map<number, string>>(new Map());
+  const [duplicateWarnings, setDuplicateWarnings] = useState<Set<number>>(new Set());
+  const [suggestedGuests, setSuggestedGuests] = useState<string[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     setTimeout(() => textareaRef.current?.focus(), 100);
   }, []);
 
-  // Parse input and extract phone numbers/names
+  // Load suggested guests from previous events
+  useEffect(() => {
+    const loadSuggestedGuests = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        // Get guests from user's previous events
+        const { data: events } = await supabase
+          .from('events')
+          .select('id')
+          .eq('organiser_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(5);
+
+        if (!events || events.length === 0) return;
+
+        const eventIds = events.map(e => e.id);
+        const { data: previousGuests } = await supabase
+          .from('guests')
+          .select('name, phone, email')
+          .in('event_id', eventIds)
+          .not('phone', 'is', null)
+          .limit(20);
+
+        if (previousGuests) {
+          const unique = new Set<string>();
+          previousGuests.forEach(g => {
+            if (g.phone) {
+              const formatted = g.name && g.name !== 'Guest' 
+                ? `${g.name}: ${g.phone}` 
+                : g.phone;
+              unique.add(formatted);
+            }
+          });
+          setSuggestedGuests(Array.from(unique).slice(0, 5));
+        }
+      } catch (err) {
+        // Ignore errors
+      }
+    };
+    loadSuggestedGuests();
+  }, []);
+
+  // Parse input and extract phone numbers/names/emails
   const parseGuestInput = (text: string): string[] => {
     return text
       .split(/[\n,;]+/)
-      .map((line) => line.trim())
-      .filter((line) => line.length > 0);
+      .map((line) => {
+        const trimmed = line.trim();
+        if (!trimmed) return null;
+        
+        // Check for "Name: Phone" or "Name: Email" format
+        if (trimmed.includes(':')) {
+          const [name, contact] = trimmed.split(':').map(s => s.trim());
+          if (name && contact) {
+            // Return as "Name: Contact" format
+            return `${name}: ${contact}`;
+          }
+        }
+        
+        // Check if it's an email
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (emailRegex.test(trimmed)) {
+          return trimmed; // Return email as-is
+        }
+        
+        return trimmed;
+      })
+      .filter((line): line is string => line !== null && line.length > 0);
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -123,7 +190,26 @@ export function GuestsStep({
     
     // Validate each guest entry
     const errors = new Map<number, string>();
+    const duplicates = new Set<number>();
+    
+    // Check for duplicates
+    const seenContacts = new Map<string, number>();
     parsed.forEach((guest, index) => {
+      // Extract contact info (phone or email)
+      let contact = guest;
+      if (guest.includes(':')) {
+        contact = guest.split(':')[1].trim();
+      }
+      
+      // Normalize for comparison
+      const normalized = contact.replace(/\s/g, '').toLowerCase();
+      if (seenContacts.has(normalized)) {
+        duplicates.add(index);
+        duplicates.add(seenContacts.get(normalized)!);
+      } else {
+        seenContacts.set(normalized, index);
+      }
+      
       // Check if it looks like a phone number
       if (looksLikePhone(guest)) {
         // Extract phone part (might be "Name: Phone" format)
@@ -135,6 +221,7 @@ export function GuestsStep({
     });
     
     setValidationErrors(errors);
+    setDuplicateWarnings(duplicates);
     onGuestsChange(parsed);
     setImportError(null);
   };
@@ -269,18 +356,28 @@ John Smith"
             <div className="flex flex-wrap gap-2">
               {guests.slice(0, 5).map((guest, index) => {
                 const hasError = validationErrors.has(index);
+                const isDuplicate = duplicateWarnings.has(index);
                 return (
                   <div
                     key={index}
                     className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs ${
                       hasError
                         ? 'bg-destructive/10 text-destructive border border-destructive/20'
+                        : isDuplicate
+                        ? 'bg-maybe/10 text-maybe border border-maybe/20'
                         : 'bg-primary/10 text-primary'
                     }`}
-                    title={hasError ? validationErrors.get(index) : undefined}
+                    title={
+                      hasError 
+                        ? validationErrors.get(index) 
+                        : isDuplicate 
+                        ? 'Duplicate contact detected'
+                        : undefined
+                    }
                   >
                     <span className="max-w-[120px] truncate">{guest}</span>
                     {hasError && <span className="text-destructive">⚠</span>}
+                    {isDuplicate && !hasError && <span className="text-maybe">⚠</span>}
                     <button
                       onClick={() => handleRemoveGuest(index)}
                       className="hover:bg-primary/20 rounded-full p-0.5 transition-colors"
@@ -301,6 +398,46 @@ John Smith"
                 Some phone numbers appear invalid. Please check the format.
               </p>
             )}
+            {duplicateWarnings.size > 0 && (
+              <p className="text-xs text-maybe mt-2">
+                Some contacts appear multiple times. Please remove duplicates.
+              </p>
+            )}
+          </motion.div>
+        )}
+
+        {/* Suggested guests from previous events */}
+        {suggestedGuests.length > 0 && guests.length === 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mt-4"
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <Clock className="w-3.5 h-3.5 text-muted-foreground" />
+              <p className="text-xs text-muted-foreground font-medium">From previous events:</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {suggestedGuests.map((suggested, index) => (
+                <motion.button
+                  key={suggested}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: index * 0.05 }}
+                  onClick={() => {
+                    const newGuests = [...guests, suggested];
+                    onGuestsChange(newGuests);
+                    setInputValue(newGuests.join('\n'));
+                  }}
+                  className="px-3 py-1.5 rounded-lg text-xs
+                    bg-card border border-border/50 text-foreground
+                    hover:border-primary/50 hover:bg-primary/5
+                    transition-all duration-200"
+                >
+                  {suggested.split(':')[0] || suggested}
+                </motion.button>
+              ))}
+            </div>
           </motion.div>
         )}
 

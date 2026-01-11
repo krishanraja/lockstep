@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronRight, Calendar, X } from 'lucide-react';
-import { format, addDays, startOfWeek, endOfWeek, addWeeks, isSameDay } from 'date-fns';
+import { format, addDays, startOfWeek, endOfWeek, addWeeks, isSameDay, differenceInDays } from 'date-fns';
 import type { EventTemplate } from '@/data/templates/types';
 
 interface DateStepProps {
@@ -44,14 +44,24 @@ export function DateStep({
       // Skip if Friday is in the past
       if (friday < today) continue;
       
+      const daysUntil = differenceInDays(friday, today);
       let label = '';
-      if (i === 0) label = 'This Weekend';
-      else if (i === 1) label = 'Next Weekend';
-      else label = `In ${i} Weeks`;
+      let sublabel = '';
+      
+      if (i === 0) {
+        label = 'This Weekend';
+        sublabel = daysUntil === 0 ? 'Today' : daysUntil === 1 ? 'Tomorrow' : `In ${daysUntil} days`;
+      } else if (i === 1) {
+        label = 'Next Weekend';
+        sublabel = `In ${daysUntil} days`;
+      } else {
+        label = `In ${i} Weeks`;
+        sublabel = `In ${daysUntil} days`;
+      }
       
       options.push({
         label,
-        sublabel: `${format(friday, 'MMM d')} - ${format(sunday, 'MMM d')}`,
+        sublabel: `${format(friday, 'MMM d')} - ${format(sunday, 'MMM d')} • ${sublabel}`,
         start: friday,
         end: sunday,
       });
@@ -61,6 +71,17 @@ export function DateStep({
     
     return options;
   };
+  
+  // Auto-select Next Weekend if no date selected
+  useEffect(() => {
+    if (!dateRange && weekendOptions.length > 1) {
+      // Pre-select "Next Weekend" (index 1)
+      const nextWeekend = weekendOptions[1];
+      if (nextWeekend) {
+        onDateRangeChange({ start: nextWeekend.start, end: nextWeekend.end });
+      }
+    }
+  }, []); // Only run once on mount
 
   const weekendOptions = getWeekendOptions();
 
@@ -248,30 +269,46 @@ export function DateStep({
             <div className="flex-1 flex flex-col items-center justify-center p-6 gap-6">
               <div className="w-full max-w-sm space-y-4">
                 <div>
-                  <label className="text-sm text-muted-foreground mb-2 block">Start Date</label>
+                  <label htmlFor="custom-start-date" className="text-sm text-muted-foreground mb-2 block">
+                    Start Date
+                  </label>
                   <input
+                    id="custom-start-date"
                     type="date"
                     value={customStart ? format(customStart, 'yyyy-MM-dd') : ''}
                     onChange={(e) => handleCustomStartChange(e.target.value)}
                     min={format(new Date(), 'yyyy-MM-dd')}
-                    className={`w-full p-4 rounded-xl bg-card border focus:border-primary outline-none ${
+                    className={`w-full p-4 rounded-xl bg-card border focus:border-primary outline-none
+                      focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
                       dateError ? 'border-destructive' : 'border-border'
                     }`}
+                    aria-label="Select start date"
+                    aria-invalid={!!dateError}
+                    aria-describedby={dateError ? 'date-error' : undefined}
                   />
                 </div>
                 <div>
-                  <label className="text-sm text-muted-foreground mb-2 block">End Date</label>
+                  <label htmlFor="custom-end-date" className="text-sm text-muted-foreground mb-2 block">
+                    End Date
+                  </label>
                   <input
+                    id="custom-end-date"
                     type="date"
                     value={customEnd ? format(customEnd, 'yyyy-MM-dd') : ''}
                     onChange={(e) => handleCustomEndChange(e.target.value)}
                     min={customStart ? format(customStart, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd')}
-                    className={`w-full p-4 rounded-xl bg-card border focus:border-primary outline-none ${
+                    className={`w-full p-4 rounded-xl bg-card border focus:border-primary outline-none
+                      focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
                       dateError ? 'border-destructive' : 'border-border'
                     }`}
+                    aria-label="Select end date"
+                    aria-invalid={!!dateError}
+                    aria-describedby={dateError ? 'date-error' : undefined}
                   />
                   {dateError && (
-                    <p className="text-sm text-destructive mt-2">{dateError}</p>
+                    <p id="date-error" className="text-sm text-destructive mt-2" role="alert">
+                      {dateError}
+                    </p>
                   )}
                 </div>
               </div>

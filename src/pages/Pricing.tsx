@@ -25,6 +25,7 @@ function PricingCard({
   tier, 
   isPopular, 
   isCurrentPlan,
+  isRecommended,
   eventId,
   onSelect,
   isLoading,
@@ -167,6 +168,7 @@ const Pricing = () => {
   const [currentTier, setCurrentTier] = useState<PricingTier>('free');
   const [isLoading, setIsLoading] = useState(false);
   const [loadingTier, setLoadingTier] = useState<PricingTier | null>(null);
+  const [recommendedTier, setRecommendedTier] = useState<PricingTier | null>(null);
   
   // Get tier from URL params (preserved after auth redirect)
   const tierFromUrl = searchParams.get('tier') as PricingTier | null;
@@ -179,11 +181,36 @@ const Pricing = () => {
       if (user) {
         const subscription = await getSubscription(user.id);
         setCurrentTier(subscription.tier);
+        
+        // Get usage-based recommendation if eventId provided
+        if (eventId) {
+          try {
+            const { data: { user: authUser } } = await supabase.auth.getUser();
+            if (authUser) {
+              // Get event usage
+              const { getEventUsage } = await import('@/services/subscription');
+              const usage = await getEventUsage(eventId, authUser.id);
+              
+              // Recommend tier based on usage
+              if (usage.guestsUsed >= 10 || usage.nudgesUsed >= 2) {
+                if (usage.guestsUsed >= 100) {
+                  setRecommendedTier('wedding');
+                } else if (usage.guestsUsed >= 50) {
+                  setRecommendedTier('pro');
+                } else {
+                  setRecommendedTier('pro');
+                }
+              }
+            }
+          } catch (err) {
+            // Ignore errors
+          }
+        }
       }
     };
 
     checkAuth();
-  }, []);
+  }, [eventId]);
   
   // Auto-select tier from URL if present (after auth redirect)
   const hasAutoSelectedRef = useRef(false);
@@ -266,7 +293,7 @@ const Pricing = () => {
         </motion.div>
 
         {/* Pricing grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-12">
           {tiers.map((tier, index) => (
             <motion.div
               key={tier}
@@ -278,40 +305,59 @@ const Pricing = () => {
                 tier={tier}
                 isPopular={tier === 'pro'}
                 isCurrentPlan={tier === currentTier}
+                isRecommended={tier === recommendedTier}
                 eventId={eventId}
                 onSelect={handleSelectTier}
                 isLoading={isLoading && loadingTier === tier}
               />
             </motion.div>
           ))}
+          {/* Annual Pro in main grid */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.5 }}
+          >
+            <PricingCard
+              tier="annual_pro"
+              isPopular={false}
+              isCurrentPlan={currentTier === 'annual_pro'}
+              isRecommended={false}
+              eventId={eventId}
+              onSelect={handleSelectTier}
+              isLoading={isLoading && loadingTier === 'annual_pro'}
+            />
+          </motion.div>
         </div>
 
-        {/* Annual plan banner */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.5 }}
-          className="relative rounded-2xl p-6 bg-gradient-to-r from-primary/20 via-card to-primary/20 border border-primary/30 mb-12"
-        >
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <div>
-              <h3 className="text-xl font-bold text-foreground mb-1">
-                Plan multiple events?
-              </h3>
-              <p className="text-muted-foreground">
-                Get Annual Pro for ${TIER_PRICING.annual_pro.price}/year — unlimited events with Pro features.
-              </p>
+        {/* Usage-based recommendation banner */}
+        {recommendedTier && recommendedTier !== currentTier && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.4 }}
+            className="relative rounded-2xl p-6 bg-confirmed/10 border border-confirmed/30 mb-6"
+          >
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+              <div>
+                <h3 className="text-xl font-bold text-foreground mb-1">
+                  Recommended for your event
+                </h3>
+                <p className="text-muted-foreground">
+                  Based on your current usage, we recommend the {TIER_PRICING[recommendedTier].label} plan.
+                </p>
+              </div>
+              <Button
+                onClick={() => handleSelectTier(recommendedTier)}
+                disabled={isLoading}
+                className="bg-confirmed hover:bg-confirmed/90 whitespace-nowrap"
+              >
+                Upgrade to {TIER_PRICING[recommendedTier].label}
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
             </div>
-            <Button
-              onClick={() => handleSelectTier('annual_pro')}
-              disabled={isLoading}
-              className="bg-primary hover:bg-primary/90 whitespace-nowrap"
-            >
-              Get Annual Pro
-              <ArrowRight className="w-4 h-4 ml-2" />
-            </Button>
-          </div>
-        </motion.div>
+          </motion.div>
+        )}
 
         {/* FAQ Section */}
         <motion.div

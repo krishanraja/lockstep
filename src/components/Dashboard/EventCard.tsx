@@ -1,10 +1,12 @@
 // Refactored Event Card component with AI summary support
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { Users, ChevronRight, Sparkles, RefreshCw } from 'lucide-react';
+import { Users, ChevronRight, Sparkles, RefreshCw, Share2, Send } from 'lucide-react';
 import { format, differenceInDays } from 'date-fns';
 import type { Event, EventStats, AISummary } from '@/queries/event-queries';
 import { useAISummary } from '@/queries/event-queries';
+import { supabase } from '@/integrations/supabase/client';
 
 interface EventCardProps {
   event: Event;
@@ -12,7 +14,7 @@ interface EventCardProps {
   index: number;
 }
 
-export const EventCard = ({ event, stats, index }: EventCardProps) => {
+export const EventCard = ({ event, stats, index, isSelectMode = false, isSelected = false, onToggleSelect }: EventCardProps) => {
   const navigate = useNavigate();
   
   // Fetch AI summary for active events with stats
@@ -47,12 +49,73 @@ export const EventCard = ({ event, stats, index }: EventCardProps) => {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.05 }}
-      className="rounded-2xl bg-card border border-border/50 overflow-hidden"
+      className="rounded-2xl bg-card border border-border/50 overflow-hidden relative group"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
+      {/* Quick actions on hover */}
+      <AnimatePresence>
+        {isHovered && stats && stats.pendingCount > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="absolute top-2 right-2 flex gap-1 z-10"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={handleQuickShare}
+              className="p-2 rounded-lg bg-background/90 backdrop-blur-sm border border-border/50
+                text-foreground hover:bg-primary hover:text-primary-foreground
+                transition-colors shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              aria-label="Share RSVP link"
+              title="Share RSVP link"
+            >
+              <Share2 className="w-4 h-4" />
+            </button>
+            {stats.pendingCount > 0 && (
+              <button
+                onClick={handleQuickNudge}
+                className="p-2 rounded-lg bg-background/90 backdrop-blur-sm border border-border/50
+                  text-foreground hover:bg-maybe hover:text-background
+                  transition-colors shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-maybe"
+                aria-label={`Nudge ${stats.pendingCount} pending guests`}
+                title={`Nudge ${stats.pendingCount} pending`}
+              >
+                <Send className="w-4 h-4" />
+              </button>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Selection checkbox */}
+      {isSelectMode && (
+        <div className="absolute top-4 left-4 z-10">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleSelect?.(event.id);
+            }}
+            className="p-2 rounded-lg bg-background/90 backdrop-blur-sm border border-border/50
+              hover:bg-primary/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            aria-label={isSelected ? "Deselect event" : "Select event"}
+          >
+            {isSelected ? (
+              <CheckSquare className="w-5 h-5 text-primary" />
+            ) : (
+              <Square className="w-5 h-5 text-muted-foreground" />
+            )}
+          </button>
+        </div>
+      )}
+
       {/* Event header - clickable */}
       <button
-        onClick={() => navigate(`/events/${event.id}`)}
-        className="w-full p-4 text-left hover:bg-muted/30 transition-colors"
+        onClick={() => !isSelectMode && navigate(`/events/${event.id}`)}
+        className="w-full p-4 text-left hover:bg-muted/30 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-t-2xl"
+        aria-label={`View event ${event.title}`}
+        disabled={isSelectMode}
       >
         <div className="flex items-start justify-between">
           <div className="flex-1">

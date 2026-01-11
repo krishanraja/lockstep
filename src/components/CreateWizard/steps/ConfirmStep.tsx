@@ -181,13 +181,16 @@ export function ConfirmStep({
               <p className="text-foreground text-sm leading-relaxed">
                 "{aiDescription || 'Your event description will appear here...'}"
               </p>
-              <button
-                onClick={onRegenerateDescription}
-                className="mt-3 flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
-              >
-                <RefreshCw className="w-3 h-3" />
-                Regenerate
-              </button>
+              <div className="mt-4 flex gap-2">
+                <button
+                  onClick={onRegenerateDescription}
+                  className="flex-1 py-2.5 rounded-lg bg-primary/10 text-primary text-sm font-medium
+                    flex items-center justify-center gap-2 hover:bg-primary/20 transition-colors"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  Try Another
+                </button>
+              </div>
             </>
           )}
         </div>
@@ -209,10 +212,18 @@ export function ConfirmStep({
           <div className="w-8 h-8 rounded-full bg-confirmed/10 flex items-center justify-center">
             <Calendar className="w-4 h-4 text-confirmed" />
           </div>
-          <span className="flex-1 text-sm text-foreground">
-            {blocks.length} time block{blocks.length !== 1 ? 's' : ''} set up
-          </span>
-          <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+          <div className="flex-1 min-w-0">
+            <div className="text-sm text-foreground font-medium">
+              {blocks.length} time block{blocks.length !== 1 ? 's' : ''} set up
+            </div>
+            {blocks.length > 0 && (
+              <div className="text-xs text-muted-foreground mt-0.5 truncate">
+                {blocks.slice(0, 2).map(b => b.name).join(', ')}
+                {blocks.length > 2 && ` +${blocks.length - 2} more`}
+              </div>
+            )}
+          </div>
+          <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors flex-shrink-0" />
         </button>
         
         {/* Checkpoints */}
@@ -224,10 +235,18 @@ export function ConfirmStep({
           <div className="w-8 h-8 rounded-full bg-confirmed/10 flex items-center justify-center">
             <Bell className="w-4 h-4 text-confirmed" />
           </div>
-          <span className="flex-1 text-sm text-foreground">
-            {checkpoints.length} reminder checkpoint{checkpoints.length !== 1 ? 's' : ''}
-          </span>
-          <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+          <div className="flex-1 min-w-0">
+            <div className="text-sm text-foreground font-medium">
+              {checkpoints.length} reminder checkpoint{checkpoints.length !== 1 ? 's' : ''}
+            </div>
+            {checkpoints.length > 0 && (
+              <div className="text-xs text-muted-foreground mt-0.5 truncate">
+                {checkpoints.slice(0, 2).map(cp => cp.name).join(', ')}
+                {checkpoints.length > 2 && ` +${checkpoints.length - 2} more`}
+              </div>
+            )}
+          </div>
+          <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors flex-shrink-0" />
         </button>
         
         {/* Questions */}
@@ -239,10 +258,18 @@ export function ConfirmStep({
           <div className="w-8 h-8 rounded-full bg-confirmed/10 flex items-center justify-center">
             <Users className="w-4 h-4 text-confirmed" />
           </div>
-          <span className="flex-1 text-sm text-foreground">
-            {questions.length} question{questions.length !== 1 ? 's' : ''} for guests
-          </span>
-          <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+          <div className="flex-1 min-w-0">
+            <div className="text-sm text-foreground font-medium">
+              {questions.length} question{questions.length !== 1 ? 's' : ''} for guests
+            </div>
+            {questions.length > 0 && (
+              <div className="text-xs text-muted-foreground mt-0.5 truncate">
+                {questions.slice(0, 2).map(q => q.prompt).join(', ')}
+                {questions.length > 2 && ` +${questions.length - 2} more`}
+              </div>
+            )}
+          </div>
+          <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors flex-shrink-0" />
         </button>
         </motion.div>
 

@@ -69,6 +69,13 @@ export const AIAssistant = ({
   // Rate limit: max 1 message per 2 seconds
   const RATE_LIMIT_MS = 2000;
 
+  // Auto-expand chat on high-priority insights
+  useEffect(() => {
+    if (insights.some(i => i.type === 'warning' && i.action)) {
+      setIsExpanded(true);
+    }
+  }, [insights]);
+
   // Generate proactive insights based on event state
   useEffect(() => {
     if (!stats) return;
@@ -301,10 +308,25 @@ export const AIAssistant = ({
               <div className="max-h-64 overflow-y-auto p-4 space-y-3">
                 {messages.length === 0 && (
                   <div className="text-center py-6">
-                    <Sparkles className="w-8 h-8 text-primary/50 mx-auto mb-2" />
-                    <p className="text-sm text-muted-foreground">
-                      Try asking: "Who's coming?" or "What's the status?"
+                    <Sparkles className="w-8 h-8 text-primary/50 mx-auto mb-3" />
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Try asking:
                     </p>
+                    <div className="flex flex-wrap gap-2 justify-center">
+                      {["Who's coming?", "What's the status?", "Send nudges", "Export data"].map((suggestion, index) => (
+                        <button
+                          key={suggestion}
+                          onClick={() => {
+                            setInput(suggestion);
+                            handleSendMessage();
+                          }}
+                          className="px-3 py-1.5 rounded-lg bg-primary/10 text-primary text-xs font-medium
+                            hover:bg-primary/20 transition-colors"
+                        >
+                          {suggestion}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )}
                 

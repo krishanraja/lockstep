@@ -87,7 +87,27 @@ const EventDetail = () => {
   const [eventUsage, setEventUsage] = useState<EventUsage | null>(null);
   const [user, setUser] = useState<any>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<TabView>('overview');
+  // Load last viewed tab from localStorage
+  const getLastTab = (): TabView => {
+    try {
+      const saved = localStorage.getItem(`event_tab_${id}`);
+      if (saved && ['overview', 'guests', 'schedule'].includes(saved)) {
+        return saved as TabView;
+      }
+    } catch {
+      // Ignore errors
+    }
+    return 'overview';
+  };
+
+  const [activeTab, setActiveTab] = useState<TabView>(getLastTab());
+
+  // Save tab preference
+  useEffect(() => {
+    if (id) {
+      localStorage.setItem(`event_tab_${id}`, activeTab);
+    }
+  }, [activeTab, id]);
   const [copiedLink, setCopiedLink] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
   const [realtimeUpdateCounter, setRealtimeUpdateCounter] = useState(0);
@@ -348,8 +368,8 @@ const EventDetail = () => {
 
   if (isLoading) {
     return (
-      <div className="h-dvh w-full flex items-center justify-center bg-background">
-        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      <div className="h-dvh w-full flex items-center justify-center bg-background" role="status" aria-live="polite">
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" aria-label="Loading event details" />
       </div>
     );
   }
@@ -375,7 +395,9 @@ const EventDetail = () => {
         <div className="flex items-center justify-between">
           <button
             onClick={() => navigate('/dashboard')}
-            className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
+            className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors
+              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-lg px-2 py-1"
+            aria-label="Go back to dashboard"
           >
             <ChevronLeft className="w-5 h-5" />
             <span className="text-sm">Back</span>
@@ -448,10 +470,14 @@ const EventDetail = () => {
                 key={tab}
                 onClick={() => setActiveTab(tab)}
                 className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all
+                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary
                   ${activeTab === tab 
                     ? 'bg-card text-foreground shadow-sm' 
                     : 'text-muted-foreground hover:text-foreground'
                   }`}
+                aria-label={`Switch to ${tab} tab`}
+                aria-selected={activeTab === tab}
+                role="tab"
               >
                 {tab.charAt(0).toUpperCase() + tab.slice(1)}
               </button>
@@ -549,6 +575,40 @@ const EventDetail = () => {
                 }))}
                 blocks={blocks}
                 rsvps={guestRsvps}
+                onBulkNudge={async (guestIds) => {
+                  if (!id || !user) return;
+                  
+                  // Check nudge limit
+                  const limitCheck = await canSendNudge(id, user.id);
+                  if (!limitCheck.allowed) {
+                    setShowUpgradeModal(true);
+                    return;
+                  }
+                  
+                  setIsSendingNudge(true);
+                  try {
+                    for (const guestId of guestIds) {
+                      const guest = guests.find(g => g.id === guestId);
+                      if (guest) {
+                        await supabase.functions.invoke('send-nudge', {
+                          body: {
+                            guestId: guest.id,
+                            eventId: id,
+                            channel: 'sms',
+                            message: `Hey ${guest.name}! Just a reminder to RSVP for ${event?.title}. We need your response to finalize plans.`,
+                          },
+                        });
+                        await incrementNudgeCount(id);
+                      }
+                    }
+                    const newUsage = await getEventUsage(id, user.id);
+                    setEventUsage(newUsage);
+                  } catch (err) {
+                    console.error('Error sending bulk nudges:', err);
+                  } finally {
+                    setIsSendingNudge(false);
+                  }
+                }}
               />
             </motion.div>
           )}

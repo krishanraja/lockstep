@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Upload, Search, Image, Check, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -143,12 +143,19 @@ export function EventPhotoSelector({
     }
   };
 
-  // Search on initial open
-  useState(() => {
-    if (isOpen && photos.length === 0 && !isSearching) {
+  // Search on initial open and auto-select first photo
+  useEffect(() => {
+    if (isOpen && photos.length === 0 && !isSearching && activeTab === 'search') {
       handleSearch();
     }
-  });
+  }, [isOpen, activeTab]);
+
+  // Auto-select first photo when photos are loaded
+  useEffect(() => {
+    if (photos.length > 0 && !selectedPhoto && activeTab === 'search') {
+      setSelectedPhoto(photos[0].src.large);
+    }
+  }, [photos, activeTab]);
 
   if (!isOpen) return null;
 

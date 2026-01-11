@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, MapPin, Loader2 } from 'lucide-react';
+import { Search, MapPin, Loader2, Navigation, Clock } from 'lucide-react';
 import type { GooglePlaceResult } from '@/data/templates/types';
 import { 
   loadGoogleMapsAPI, 
@@ -36,7 +36,69 @@ export function PlacesAutocomplete({
   const [mapError, setMapError] = useState(false);
   const [isGeocoding, setIsGeocoding] = useState(false);
   const [geocodeError, setGeocodeError] = useState<string | null>(null);
+  const [recentLocations, setRecentLocations] = useState<string[]>([]);
+  const [isGettingLocation, setIsGettingLocation] = useState(false);
   const geocodeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Load recent locations from localStorage
+  useEffect(() => {
+    try {
+      const recent = localStorage.getItem('lockstep_recent_locations');
+      if (recent) {
+        setRecentLocations(JSON.parse(recent).slice(0, 3));
+      }
+    } catch {
+      // Ignore errors
+    }
+  }, []);
+
+  // Save location to recent list
+  const saveRecentLocation = useCallback((locationText: string) => {
+    try {
+      const recent = JSON.parse(localStorage.getItem('lockstep_recent_locations') || '[]');
+      const updated = [locationText, ...recent.filter((l: string) => l !== locationText)].slice(0, 5);
+      localStorage.setItem('lockstep_recent_locations', JSON.stringify(updated));
+      setRecentLocations(updated.slice(0, 3));
+    } catch {
+      // Ignore errors
+    }
+  }, []);
+
+  // Get current location
+  const handleGetCurrentLocation = useCallback(async () => {
+    if (!navigator.geolocation) {
+      setGeocodeError('Geolocation is not supported by your browser');
+      return;
+    }
+
+    setIsGettingLocation(true);
+    setGeocodeError(null);
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          const { latitude, longitude } = position.coords;
+          // Reverse geocode to get address
+          const result = await geocodeAddress(`${latitude},${longitude}`);
+          if (result) {
+            onLocationSelect(result, result.formattedAddress);
+            onValueChange(result.formattedAddress);
+            saveRecentLocation(result.formattedAddress);
+          } else {
+            setGeocodeError('Could not find address for your location');
+          }
+        } catch (err) {
+          setGeocodeError('Failed to get location address');
+        } finally {
+          setIsGettingLocation(false);
+        }
+      },
+      (error) => {
+        setGeocodeError('Could not access your location. Please enable location permissions.');
+        setIsGettingLocation(false);
+      }
+    );
+  }, [onLocationSelect, onValueChange, saveRecentLocation]);
 
   useEffect(() => {
     let isMounted = true;
@@ -114,6 +176,7 @@ export function PlacesAutocomplete({
       if (result) {
         console.log('[PlacesAutocomplete] Geocoding successful:', result);
         onLocationSelect(result, result.formattedAddress);
+        saveRecentLocation(result.formattedAddress);
         setGeocodeError(null);
       } else {
         console.warn('[PlacesAutocomplete] Geocoding returned no results for:', address);
@@ -129,8 +192,14 @@ export function PlacesAutocomplete({
 
   const handleSuggestionClick = (suggestion: string) => {
     onValueChange(suggestion);
+    saveRecentLocation(suggestion);
     // Trigger geocoding for the suggestion to get coordinates
     tryGeocodeAddress(suggestion);
+  };
+
+  const handleRecentLocationClick = (locationText: string) => {
+    onValueChange(locationText);
+    tryGeocodeAddress(locationText);
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -281,6 +350,66 @@ export function PlacesAutocomplete({
           );
         })()}
       </AnimatePresence>
+
+      {/* Current Location Button */}
+      {!location && (
+        <motion.button
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          onClick={handleGetCurrentLocation}
+          disabled={isGettingLocation}
+          className="mt-4 w-full py-3 rounded-xl bg-card border border-border/50
+            text-sm font-medium text-foreground
+            flex items-center justify-center gap-2
+            hover:border-primary/50 hover:bg-primary/5
+            transition-all duration-200
+            disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isGettingLocation ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Getting location...
+            </>
+          ) : (
+            <>
+              <Navigation className="w-4 h-4" />
+              Use current location
+            </>
+          )}
+        </motion.button>
+      )}
+
+      {/* Recent Locations */}
+      {recentLocations.length > 0 && !location && !value && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.1 }}
+          className="mt-4"
+        >
+          <div className="flex items-center gap-2 mb-2">
+            <Clock className="w-3.5 h-3.5 text-muted-foreground" />
+            <p className="text-sm text-muted-foreground font-medium">Recent locations:</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {recentLocations.map((locationText, index) => (
+              <motion.button
+                key={locationText}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.2, delay: index * 0.05 }}
+                onClick={() => handleRecentLocationClick(locationText)}
+                className="px-3 py-2 rounded-xl text-sm
+                  bg-card border border-border/50 text-foreground
+                  hover:border-primary/50 hover:bg-primary/5
+                  transition-all duration-200"
+              >
+                {locationText.split(',')[0]}
+              </motion.button>
+            ))}
+          </div>
+        </motion.div>
+      )}
 
       {/* AI Suggestions */}
       {suggestions.length > 0 && !location && (

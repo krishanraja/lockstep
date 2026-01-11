@@ -128,8 +128,8 @@ export const SmartActions = ({
           >
             <action.icon className="w-5 h-5 flex-shrink-0" />
             <div className="flex-1 text-left">
-              <div className="font-medium text-sm">{action.label}</div>
-              <div className="text-xs opacity-80">{action.description}</div>
+              <div className="font-medium text-sm mb-0.5">{action.label}</div>
+              <div className="text-xs text-foreground/70 leading-relaxed">{action.description}</div>
             </div>
             {action.priority === 'high' && (
               <AlertTriangle className="w-4 h-4 flex-shrink-0" />

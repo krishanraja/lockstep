@@ -1,7 +1,7 @@
 // AvatarUpload - Profile picture upload with preview
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Camera, Loader2, Check, X } from 'lucide-react';
+import { User, Camera, Loader2, Check, X, Crop } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 
@@ -22,7 +22,10 @@ export const AvatarUpload = ({
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [showCropPreview, setShowCropPreview] = useState(false);
+  const [cropImage, setCropImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -40,20 +43,74 @@ export const AvatarUpload = ({
       return;
     }
 
-    // Create preview
+    // Create preview and show crop option
+    setError(null);
     const reader = new FileReader();
     reader.onload = (event) => {
-      setPreviewUrl(event.target?.result as string);
+      const dataUrl = event.target?.result as string;
+      setCropImage(dataUrl);
+      setShowCropPreview(true);
     };
     reader.readAsDataURL(file);
+  };
 
-    // Upload to Supabase Storage
+  // Process and crop image to square (1:1 aspect ratio)
+  const processAndCropImage = async (imageUrl: string): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const size = Math.min(img.width, img.height);
+        canvas.width = size;
+        canvas.height = size;
+        
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('Could not get canvas context'));
+          return;
+        }
+        
+        // Draw centered square crop
+        const x = (img.width - size) / 2;
+        const y = (img.height - size) / 2;
+        ctx.drawImage(img, x, y, size, size, 0, 0, size, size);
+        
+        // Convert to data URL
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+        resolve(dataUrl);
+      };
+      img.onerror = reject;
+      img.src = imageUrl;
+    });
+  };
+
+  const handleConfirmCrop = async () => {
+    if (!cropImage) return;
+    try {
+      const processed = await processAndCropImage(cropImage);
+      setPreviewUrl(processed);
+      setShowCropPreview(false);
+      setCropImage(null);
+      
+      // Auto-upload after crop
+      const blob = await (await fetch(processed)).blob();
+      const file = new File([blob], 'avatar.jpg', { type: 'image/jpeg' });
+      await uploadFile(file);
+    } catch (err: any) {
+      console.error('Error processing crop:', err);
+      setError('Failed to process image');
+      setShowCropPreview(false);
+      setCropImage(null);
+    }
+  };
+
+  const uploadFile = async (file: File) => {
     setIsUploading(true);
     setError(null);
-
+    
     try {
       // Generate unique filename
-      const fileExt = file.name.split('.').pop();
+      const fileExt = file.name.split('.').pop() || 'jpg';
       const fileName = `${userId}/${Date.now()}.${fileExt}`;
 
       // Upload file
@@ -86,6 +143,7 @@ export const AvatarUpload = ({
       console.error('Error uploading avatar:', err);
       setError(err.message || 'Failed to upload image');
       setPreviewUrl(null);
+      setCropImage(null);
     } finally {
       setIsUploading(false);
     }
@@ -209,6 +267,63 @@ export const AvatarUpload = ({
           </Button>
         )}
       </div>
+
+      {/* Crop preview modal */}
+      <AnimatePresence>
+        {showCropPreview && cropImage && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={() => {
+              setShowCropPreview(false);
+              setCropImage(null);
+            }}
+          >
+            <motion.div
+              initial={{ scale: 0.9 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.9 }}
+              className="bg-card border border-border rounded-2xl p-6 max-w-md w-full"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-lg font-semibold mb-4">Crop your avatar</h3>
+              <div className="relative mb-4">
+                <img
+                  src={cropImage}
+                  alt="Crop preview"
+                  className="w-full rounded-xl"
+                  style={{ aspectRatio: '1/1', objectFit: 'cover' }}
+                />
+                <div className="absolute inset-0 border-4 border-primary rounded-xl pointer-events-none" />
+              </div>
+              <p className="text-sm text-muted-foreground mb-4">
+                Your avatar will be cropped to a square. The center portion will be used.
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowCropPreview(false);
+                    setCropImage(null);
+                  }}
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleConfirmCrop}
+                  className="flex-1"
+                >
+                  <Crop className="w-4 h-4 mr-2" />
+                  Use This
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Error message */}
       {error && (

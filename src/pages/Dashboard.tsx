@@ -2,7 +2,7 @@
 import { useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Plus, Calendar, LogOut, Crown, User } from 'lucide-react';
+import { Plus, Calendar, LogOut, Crown, User, Archive, Trash2, CheckSquare, Square } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { UsageSummary } from '@/components/UsageIndicator';
 import { TIER_LIMITS } from '@/services/subscription';
@@ -57,10 +57,31 @@ const Dashboard = () => {
   };
 
   // Derive values from data
-  const events = dashboardData?.events || [];
+  const allEvents = dashboardData?.events || [];
   const eventStats = dashboardData?.stats || new Map();
   const tier = subscription?.tier || 'free';
   const isAnnual = subscription?.isAnnual || false;
+  
+  // Sort events: needs attention first, then by date (upcoming first)
+  const events = [...allEvents].sort((a, b) => {
+    const aStats = eventStats.get(a.id);
+    const bStats = eventStats.get(b.id);
+    const aNeedsAttention = aStats && aStats.pendingCount >= 3;
+    const bNeedsAttention = bStats && bStats.pendingCount >= 3;
+    
+    // Needs attention first
+    if (aNeedsAttention && !bNeedsAttention) return -1;
+    if (!aNeedsAttention && bNeedsAttention) return 1;
+    
+    // Then by date (upcoming first, null dates last)
+    if (!a.start_date && !b.start_date) return 0;
+    if (!a.start_date) return 1;
+    if (!b.start_date) return -1;
+    
+    const aDate = new Date(a.start_date).getTime();
+    const bDate = new Date(b.start_date).getTime();
+    return aDate - bDate;
+  });
   
   // Calculate total usage across all events
   const totalUsage = {
@@ -89,10 +110,29 @@ const Dashboard = () => {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {events.length > 0 && (
+              <button
+                onClick={() => {
+                  setIsSelectMode(!isSelectMode);
+                  if (isSelectMode) setSelectedEvents(new Set());
+                }}
+                className="p-2 rounded-full text-muted-foreground hover:text-foreground
+                  hover:bg-muted transition-colors"
+                aria-label={isSelectMode ? "Cancel selection" : "Select events"}
+                title={isSelectMode ? "Cancel" : "Select"}
+              >
+                {isSelectMode ? (
+                  <Square className="w-5 h-5" />
+                ) : (
+                  <CheckSquare className="w-5 h-5" />
+                )}
+              </button>
+            )}
             <button
               onClick={() => navigate('/profile')}
               className="p-2 rounded-full text-muted-foreground hover:text-primary
-                hover:bg-primary/10 transition-colors"
+                hover:bg-primary/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              aria-label="Open profile settings"
               title="Profile"
             >
               <User className="w-5 h-5" />
@@ -100,7 +140,8 @@ const Dashboard = () => {
             <button
               onClick={handleSignOut}
               className="p-2 rounded-full text-muted-foreground hover:text-foreground
-                hover:bg-muted transition-colors"
+                hover:bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              aria-label="Sign out"
               title="Sign out"
             >
               <LogOut className="w-5 h-5" />
@@ -108,7 +149,8 @@ const Dashboard = () => {
             <button
               onClick={() => navigate('/create')}
               className="w-10 h-10 rounded-full bg-primary flex items-center justify-center
-                hover:opacity-90 transition-opacity"
+                hover:opacity-90 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+              aria-label="Create new event"
             >
               <Plus className="w-5 h-5 text-primary-foreground" />
             </button>
@@ -156,7 +198,9 @@ const Dashboard = () => {
             <button
               onClick={() => navigate('/create')}
               className="px-6 py-3 rounded-xl bg-primary text-primary-foreground font-medium
-                flex items-center gap-2 hover:opacity-90 transition-opacity"
+                flex items-center gap-2 hover:opacity-90 transition-opacity
+                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+              aria-label="Create your first event"
             >
               <Plus className="w-5 h-5" />
               Create Event
@@ -165,6 +209,61 @@ const Dashboard = () => {
         ) : (
           // Events list
           <div className="space-y-4">
+            {/* Bulk actions bar */}
+            {isSelectMode && selectedEvents.size > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="sticky top-0 z-10 p-4 bg-card border border-border/50 rounded-2xl
+                  flex items-center justify-between gap-3 shadow-lg"
+              >
+                <span className="text-sm text-foreground font-medium">
+                  {selectedEvents.size} event{selectedEvents.size !== 1 ? 's' : ''} selected
+                </span>
+                <div className="flex gap-2">
+                  <button
+                    onClick={async () => {
+                      // Archive selected events
+                      for (const eventId of selectedEvents) {
+                        await supabase
+                          .from('events')
+                          .update({ status: 'archived' })
+                          .eq('id', eventId);
+                      }
+                      setSelectedEvents(new Set());
+                      setIsSelectMode(false);
+                      window.location.reload();
+                    }}
+                    className="px-3 py-1.5 rounded-lg bg-muted text-foreground text-sm font-medium
+                      hover:bg-muted/80 transition-colors flex items-center gap-1.5"
+                    aria-label={`Archive ${selectedEvents.size} events`}
+                  >
+                    <Archive className="w-4 h-4" />
+                    Archive
+                  </button>
+                  <button
+                    onClick={async () => {
+                      // Delete selected events (with confirmation)
+                      if (confirm(`Delete ${selectedEvents.size} event${selectedEvents.size !== 1 ? 's' : ''}? This cannot be undone.`)) {
+                        for (const eventId of selectedEvents) {
+                          await supabase.from('events').delete().eq('id', eventId);
+                        }
+                        setSelectedEvents(new Set());
+                        setIsSelectMode(false);
+                        window.location.reload();
+                      }
+                    }}
+                    className="px-3 py-1.5 rounded-lg bg-destructive/10 text-destructive text-sm font-medium
+                      hover:bg-destructive/20 transition-colors flex items-center gap-1.5"
+                    aria-label={`Delete ${selectedEvents.size} events`}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Delete
+                  </button>
+                </div>
+              </motion.div>
+            )}
+
             {/* Usage Summary for Free Tier */}
             {tier === 'free' && events.length > 0 && (
               <motion.div
@@ -190,6 +289,19 @@ const Dashboard = () => {
                 event={event}
                 stats={eventStats.get(event.id) || null}
                 index={index}
+                isSelectMode={isSelectMode}
+                isSelected={selectedEvents.has(event.id)}
+                onToggleSelect={(eventId) => {
+                  setSelectedEvents(prev => {
+                    const next = new Set(prev);
+                    if (next.has(eventId)) {
+                      next.delete(eventId);
+                    } else {
+                      next.add(eventId);
+                    }
+                    return next;
+                  });
+                }}
               />
             ))}
           </div>

@@ -9,7 +9,10 @@ import {
   ChevronDown,
   ChevronUp,
   Phone,
-  Mail
+  Mail,
+  Send,
+  CheckSquare,
+  Square
 } from 'lucide-react';
 
 interface Guest {
@@ -36,11 +39,14 @@ interface GuestGridProps {
   blocks: Block[];
   rsvps: GuestRSVP[];
   onGuestClick?: (guest: Guest) => void;
+  onBulkNudge?: (guestIds: string[]) => void;
 }
 
-export const GuestGrid = ({ guests, blocks, rsvps, onGuestClick }: GuestGridProps) => {
+export const GuestGrid = ({ guests, blocks, rsvps, onGuestClick, onBulkNudge }: GuestGridProps) => {
   const [expandedBlock, setExpandedBlock] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'in' | 'maybe' | 'out' | 'pending'>('all');
+  const [selectedGuests, setSelectedGuests] = useState<Set<string>>(new Set());
+  const [isSelectMode, setIsSelectMode] = useState(false);
 
   // Get RSVP for a specific guest and block
   const getGuestRSVP = (guestId: string, blockId: string): 'in' | 'maybe' | 'out' | null => {
@@ -95,12 +101,58 @@ export const GuestGrid = ({ guests, blocks, rsvps, onGuestClick }: GuestGridProp
     }
   };
 
+  const toggleSelectMode = () => {
+    setIsSelectMode(!isSelectMode);
+    if (isSelectMode) {
+      setSelectedGuests(new Set());
+    }
+  };
+
+  const toggleGuestSelection = (guestId: string) => {
+    setSelectedGuests(prev => {
+      const next = new Set(prev);
+      if (next.has(guestId)) {
+        next.delete(guestId);
+      } else {
+        next.add(guestId);
+      }
+      return next;
+    });
+  };
+
+  const handleBulkNudge = () => {
+    if (onBulkNudge && selectedGuests.size > 0) {
+      onBulkNudge(Array.from(selectedGuests));
+      setSelectedGuests(new Set());
+      setIsSelectMode(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm font-medium text-foreground">
           <Users className="w-4 h-4 text-primary" />
           Guests ({guests.length})
+        </div>
+        <div className="flex items-center gap-2">
+          {isSelectMode && selectedGuests.size > 0 && onBulkNudge && (
+            <button
+              onClick={handleBulkNudge}
+              className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium
+                flex items-center gap-1.5 hover:opacity-90 transition-opacity"
+            >
+              <Send className="w-3.5 h-3.5" />
+              Nudge {selectedGuests.size}
+            </button>
+          )}
+          <button
+            onClick={toggleSelectMode}
+            className="px-3 py-1.5 rounded-lg bg-muted text-foreground text-xs font-medium
+              hover:bg-muted/80 transition-colors"
+          >
+            {isSelectMode ? 'Cancel' : 'Select'}
+          </button>
         </div>
       </div>
 
@@ -141,55 +193,88 @@ export const GuestGrid = ({ guests, blocks, rsvps, onGuestClick }: GuestGridProp
                 className="rounded-xl bg-card border border-border/50 overflow-hidden"
               >
                 {/* Guest header */}
-                <button
-                  onClick={() => setExpandedBlock(isExpanded ? null : guest.id)}
-                  className="w-full p-3 flex items-center justify-between hover:bg-muted/30 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    {/* Avatar with status */}
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center
-                      ${getStatusColor(overallStatus)}`}
+                <div className="w-full p-3 flex items-center justify-between hover:bg-muted/30 transition-colors">
+                  {isSelectMode ? (
+                    <button
+                      onClick={() => toggleGuestSelection(guest.id)}
+                      className="flex items-center gap-3 flex-1 text-left"
                     >
-                      <span className="text-sm font-medium">
-                        {guest.name.charAt(0).toUpperCase()}
-                      </span>
-                    </div>
-                    
-                    <div className="text-left">
-                      <div className="font-medium text-foreground">{guest.name}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {guest.status === 'pending' ? 'Awaiting response' : 'Responded'}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    {/* Block response indicators */}
-                    <div className="flex gap-1">
-                      {blocks.slice(0, 4).map(block => (
-                        <div 
-                          key={block.id}
-                          className="w-5 h-5 rounded flex items-center justify-center bg-muted/50"
-                          title={block.name}
-                        >
-                          {getStatusIcon(getGuestRSVP(guest.id, block.id))}
-                        </div>
-                      ))}
-                      {blocks.length > 4 && (
-                        <div className="w-5 h-5 rounded flex items-center justify-center 
-                          bg-muted/50 text-xs text-muted-foreground">
-                          +{blocks.length - 4}
-                        </div>
+                      {selectedGuests.has(guest.id) ? (
+                        <CheckSquare className="w-5 h-5 text-primary" />
+                      ) : (
+                        <Square className="w-5 h-5 text-muted-foreground" />
                       )}
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center
+                        ${getStatusColor(overallStatus)}`}
+                      >
+                        <span className="text-sm font-medium">
+                          {guest.name.charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                      <div className="text-left">
+                        <div className="font-medium text-foreground">{guest.name}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {guest.status === 'pending' ? 'Awaiting response' : 'Responded'}
+                        </div>
+                      </div>
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => setExpandedBlock(isExpanded ? null : guest.id)}
+                      className="flex items-center gap-3 flex-1 text-left"
+                    >
+                      {/* Avatar with status */}
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center
+                        ${getStatusColor(overallStatus)}`}
+                      >
+                        <span className="text-sm font-medium">
+                          {guest.name.charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                      
+                      <div className="text-left">
+                        <div className="font-medium text-foreground">{guest.name}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {guest.status === 'pending' ? 'Awaiting response' : 'Responded'}
+                        </div>
+                      </div>
+                    </button>
+                  )}
+
+                  {!isSelectMode && (
+                    <div className="flex items-center gap-2">
+                      {/* Block response indicators */}
+                      <div className="flex gap-1">
+                        {blocks.slice(0, 4).map(block => (
+                          <div 
+                            key={block.id}
+                            className="w-5 h-5 rounded flex items-center justify-center bg-muted/50"
+                            title={block.name}
+                          >
+                            {getStatusIcon(getGuestRSVP(guest.id, block.id))}
+                          </div>
+                        ))}
+                        {blocks.length > 4 && (
+                          <div className="w-5 h-5 rounded flex items-center justify-center 
+                            bg-muted/50 text-xs text-muted-foreground">
+                            +{blocks.length - 4}
+                          </div>
+                        )}
+                      </div>
+                      
+                      <button
+                        onClick={() => setExpandedBlock(isExpanded ? null : guest.id)}
+                        className="p-1 rounded hover:bg-muted/50 transition-colors"
+                      >
+                        {isExpanded ? (
+                          <ChevronUp className="w-4 h-4 text-muted-foreground" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                        )}
+                      </button>
                     </div>
-                    
-                    {isExpanded ? (
-                      <ChevronUp className="w-4 h-4 text-muted-foreground" />
-                    ) : (
-                      <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                    )}
-                  </div>
-                </button>
+                  )}
+                </div>
 
                 {/* Expanded details */}
                 <AnimatePresence>

@@ -70,6 +70,41 @@ export function CreateWizard() {
   // Track mounted state to prevent state updates after unmount
   const isMountedRef = useRef(true);
 
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Cmd/Ctrl+K for search (if we add search later)
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        // Future: open search
+      }
+      
+      // Arrow keys for navigation in wizard
+      if (e.key === 'ArrowLeft' && canGoBack) {
+        e.preventDefault();
+        handleBack();
+      }
+      if (e.key === 'ArrowRight' && state.step !== 'guests') {
+        e.preventDefault();
+        // Only continue if current step is valid
+        if (state.step === 'type' && state.template) {
+          goNext();
+        } else if (state.step === 'host' && state.hostName.trim()) {
+          goNext();
+        } else if (state.step === 'date' && state.dateRange) {
+          goNext();
+        } else if (state.step === 'location' && state.locationText.trim()) {
+          goNext();
+        } else if (state.step === 'confirm') {
+          goNext();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [state.step, state.template, state.hostName, state.dateRange, state.locationText, canGoBack, goNext, handleBack]);
+
   // Cleanup on unmount
   useEffect(() => {
     isMountedRef.current = true;
@@ -854,11 +889,36 @@ export function CreateWizard() {
         </div>
       </header>
 
-      {/* Error message with retry option */}
+      {/* Error message with retry option and recovery suggestions */}
       {error && (
-        <div className="px-4 py-2 bg-destructive/10 border-t border-destructive/20">
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-sm text-destructive flex-1">{error}</p>
+        <div className="px-4 py-3 bg-destructive/10 border-t border-destructive/20">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex-1">
+              <p className="text-sm text-destructive font-medium mb-1">{error}</p>
+              <div className="text-xs text-muted-foreground space-y-0.5">
+                <p className="font-medium">What you can do:</p>
+                <ul className="list-disc list-inside space-y-0.5 ml-2">
+                  {error.includes('timeout') || error.includes('connection') ? (
+                    <>
+                      <li>Check your internet connection</li>
+                      <li>Try refreshing the page</li>
+                      <li>Wait a moment and try again</li>
+                    </>
+                  ) : error.includes('Database') || error.includes('schema') ? (
+                    <>
+                      <li>Refresh the page to reload</li>
+                      <li>Clear your browser cache if the issue persists</li>
+                    </>
+                  ) : (
+                    <>
+                      <li>Check that all required fields are filled</li>
+                      <li>Try again in a moment</li>
+                      {canRetry && <li>Click Retry to attempt again</li>}
+                    </>
+                  )}
+                </ul>
+              </div>
+            </div>
             {canRetry && (
               <button
                 onClick={handleCreateEvent}
@@ -866,7 +926,7 @@ export function CreateWizard() {
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg
                   bg-destructive/20 text-destructive text-sm font-medium
                   hover:bg-destructive/30 transition-colors
-                  disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${isSubmitting ? 'animate-spin' : ''}`} />
                 Retry

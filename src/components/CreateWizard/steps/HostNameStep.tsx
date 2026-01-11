@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ChevronRight, Edit2 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import type { EventTemplate } from '@/data/templates/types';
 
 interface HostNameStepProps {
@@ -25,6 +26,32 @@ export function HostNameStep({
   const [isEditingEventName, setIsEditingEventName] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const eventNameInputRef = useRef<HTMLInputElement>(null);
+  const [profileName, setProfileName] = useState<string | null>(null);
+
+  // Load profile name to pre-fill
+  useEffect(() => {
+    const loadProfileName = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('display_name')
+            .eq('user_id', user.id)
+            .single();
+          
+          if (profile?.display_name && !hostName) {
+            setProfileName(profile.display_name);
+            // Pre-fill if host name is empty
+            onHostNameChange(profile.display_name);
+          }
+        }
+      } catch (err) {
+        // Ignore errors
+      }
+    };
+    loadProfileName();
+  }, []);
 
   useEffect(() => {
     // Focus the input on mount
@@ -122,12 +149,12 @@ export function HostNameStep({
             {!isEditingEventName ? (
               <button
                 onClick={handleEventNameEdit}
-                className="relative inline-block text-lg text-primary font-medium
-                  hover:opacity-80 transition-opacity group"
+                className="relative inline-flex items-center gap-2 text-lg text-primary font-medium
+                  hover:opacity-80 transition-opacity group px-2 py-1 rounded-lg
+                  hover:bg-primary/5"
               >
                 <span>{eventName}</span>
-                <Edit2 className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity
-                  absolute -right-6 top-1/2 -translate-y-1/2" />
+                <Edit2 className="w-4 h-4 opacity-60 group-hover:opacity-100 transition-opacity" />
               </button>
             ) : (
               <input
@@ -146,7 +173,8 @@ export function HostNameStep({
                   focus:outline-none py-1"
               />
             )}
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="text-xs text-muted-foreground mt-1 flex items-center justify-center gap-1">
+              <Edit2 className="w-3 h-3" />
               Tap to customize
             </p>
           </motion.div>

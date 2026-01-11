@@ -311,11 +311,46 @@ const Auth = () => {
                 <p className="text-sm text-destructive mt-1">{errors.password}</p>
               )}
               {!isLogin && password.length > 0 && (
-                <p className={`text-xs mt-1 ${
-                  password.length >= 6 ? 'text-confirmed' : 'text-muted-foreground'
-                }`}>
-                  {password.length < 6 ? 'At least 6 characters' : '✓ Password strength: Good'}
-                </p>
+                <div className="mt-2 space-y-1">
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                      <div 
+                        className={`h-full transition-all duration-300 ${
+                          password.length < 6 
+                            ? 'w-1/3 bg-destructive' 
+                            : password.length < 10 || !/[A-Z]/.test(password) || !/[0-9]/.test(password)
+                            ? 'w-2/3 bg-maybe'
+                            : 'w-full bg-confirmed'
+                        }`}
+                      />
+                    </div>
+                    <span className={`text-xs ${
+                      password.length < 6 
+                        ? 'text-destructive' 
+                        : password.length < 10 || !/[A-Z]/.test(password) || !/[0-9]/.test(password)
+                        ? 'text-maybe'
+                        : 'text-confirmed'
+                    }`}>
+                      {password.length < 6 
+                        ? 'Weak' 
+                        : password.length < 10 || !/[A-Z]/.test(password) || !/[0-9]/.test(password)
+                        ? 'Medium'
+                        : 'Strong'}
+                    </span>
+                  </div>
+                  {password.length < 6 && (
+                    <p className="text-xs text-muted-foreground">At least 6 characters</p>
+                  )}
+                  {password.length >= 6 && password.length < 10 && (
+                    <p className="text-xs text-muted-foreground">Add more characters for better security</p>
+                  )}
+                  {password.length >= 6 && !/[A-Z]/.test(password) && (
+                    <p className="text-xs text-muted-foreground">Add uppercase letters</p>
+                  )}
+                  {password.length >= 6 && !/[0-9]/.test(password) && (
+                    <p className="text-xs text-muted-foreground">Add numbers</p>
+                  )}
+                </div>
               )}
             </div>
           )}

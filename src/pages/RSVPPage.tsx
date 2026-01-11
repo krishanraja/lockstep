@@ -187,12 +187,18 @@ const RSVPPage = () => {
         }
       }
 
+      // Check if user has RSVP'd before - skip welcome step
+      const hasPreviousRSVP = existingRsvps && existingRsvps.length > 0;
+      
       // Check for deep link focus
       const focus = searchParams.get('focus');
       if (focus?.startsWith('block:')) {
         setStep('blocks');
       } else if (focus?.startsWith('question:')) {
         setStep('questions');
+      } else if (hasPreviousRSVP) {
+        // Skip welcome for returning guests
+        setStep('blocks');
       }
 
     } catch (err) {
@@ -442,7 +448,9 @@ const RSVPPage = () => {
               transition={{ delay: 0.3 }}
               onClick={goNext}
               className="w-full py-4 rounded-2xl bg-primary text-primary-foreground font-medium
-                flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
+                flex items-center justify-center gap-2 hover:opacity-90 transition-opacity
+                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+              aria-label="Start RSVP process"
             >
               Let's RSVP
               <ChevronRight className="w-5 h-5" />
@@ -475,6 +483,58 @@ const RSVPPage = () => {
               </p>
             </div>
 
+            {/* Bulk actions */}
+            {blocks.length > 1 && (
+              <div className="px-4 pt-4 flex gap-2">
+                <button
+                  onClick={() => {
+                    const allIn = blocks.map(b => ({ blockId: b.id, response: 'in' as RSVPResponse }));
+                    setResponses(allIn);
+                    // Auto-save
+                    if (autoSaveKey) {
+                      try {
+                        localStorage.setItem(autoSaveKey, JSON.stringify({
+                          responses: allIn,
+                          answers,
+                          timestamp: Date.now(),
+                        }));
+                      } catch (err) {
+                        console.warn('Failed to auto-save RSVP:', err);
+                      }
+                    }
+                  }}
+                  className="flex-1 py-2 rounded-xl bg-confirmed/10 text-confirmed text-sm font-medium
+                    hover:bg-confirmed/20 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-confirmed"
+                  aria-label="Select all blocks as attending"
+                >
+                  I'm in for everything
+                </button>
+                <button
+                  onClick={() => {
+                    const allOut = blocks.map(b => ({ blockId: b.id, response: 'out' as RSVPResponse }));
+                    setResponses(allOut);
+                    // Auto-save
+                    if (autoSaveKey) {
+                      try {
+                        localStorage.setItem(autoSaveKey, JSON.stringify({
+                          responses: allOut,
+                          answers,
+                          timestamp: Date.now(),
+                        }));
+                      } catch (err) {
+                        console.warn('Failed to auto-save RSVP:', err);
+                      }
+                    }
+                  }}
+                  className="flex-1 py-2 rounded-xl bg-out/10 text-out text-sm font-medium
+                    hover:bg-out/20 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-out"
+                  aria-label="Select all blocks as not attending"
+                >
+                  I'm out for everything
+                </button>
+              </div>
+            )}
+
             {/* Blocks list */}
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
               {blocks.map((block, index) => {
@@ -487,13 +547,19 @@ const RSVPPage = () => {
                     transition={{ delay: index * 0.05 }}
                     className="p-4 rounded-2xl bg-card border border-border/50"
                   >
-                    <div className="flex items-center justify-between mb-3">
-                      <div>
-                        <h3 className="font-medium text-foreground">{block.name}</h3>
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1">
+                        <h3 className="font-medium text-foreground mb-1">{block.name}</h3>
                         {block.start_time && (
-                          <p className="text-xs text-muted-foreground">
-                            {format(new Date(block.start_time), 'EEE, MMM d • h:mm a')}
-                          </p>
+                          <div className="space-y-0.5">
+                            <p className="text-sm text-foreground font-medium">
+                              {format(new Date(block.start_time), 'EEEE, MMMM d')}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {format(new Date(block.start_time), 'h:mm a')}
+                              {block.end_time && ` - ${format(new Date(block.end_time), 'h:mm a')}`}
+                            </p>
+                          </div>
                         )}
                       </div>
                     </div>
@@ -586,10 +652,20 @@ const RSVPPage = () => {
                     transition={{ delay: index * 0.05 }}
                     className="p-4 rounded-2xl bg-card border border-border/50"
                   >
-                    <label className="font-medium text-foreground block mb-3">
-                      {question.prompt}
-                      {question.required && <span className="text-destructive ml-1">*</span>}
-                    </label>
+                    <div className="flex items-center justify-between mb-3">
+                      <label className="font-medium text-foreground">
+                        {question.prompt}
+                        {question.required && <span className="text-destructive ml-1">*</span>}
+                      </label>
+                      {!question.required && (
+                        <button
+                          onClick={() => handleQuestionAnswer(question.id, null)}
+                          className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          Skip
+                        </button>
+                      )}
+                    </div>
 
                     {/* Render based on question type */}
                     {(question.type === 'single_select' || question.type === 'multi_select') && question.options && (
