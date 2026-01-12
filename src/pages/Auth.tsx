@@ -230,38 +230,36 @@ const Auth = () => {
         )}
 
         {/* Auth method toggle */}
-        {isLogin && (
-          <div className="mb-4 flex gap-2 p-1 bg-muted rounded-lg">
-            <button
-              type="button"
-              onClick={() => {
-                setAuthMethod('password');
-                setErrors({});
-              }}
-              className={`flex-1 py-2 rounded-md text-sm font-medium transition-all ${
-                authMethod === 'password'
-                  ? 'bg-background text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              Password
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setAuthMethod('magic-link');
-                setErrors({});
-              }}
-              className={`flex-1 py-2 rounded-md text-sm font-medium transition-all ${
-                authMethod === 'magic-link'
-                  ? 'bg-background text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              Magic Link
-            </button>
-          </div>
-        )}
+        <div className="mb-4 flex gap-2 p-1 bg-muted rounded-lg">
+          <button
+            type="button"
+            onClick={() => {
+              setAuthMethod('password');
+              setErrors({});
+            }}
+            className={`flex-1 py-2 rounded-md text-sm font-medium transition-all ${
+              authMethod === 'password'
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Password
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setAuthMethod('magic-link');
+              setErrors({});
+            }}
+            className={`flex-1 py-2 rounded-md text-sm font-medium transition-all ${
+              authMethod === 'magic-link'
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Magic Link
+          </button>
+        </div>
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -275,16 +273,37 @@ const Auth = () => {
               value={email}
               onChange={(e) => {
                 setEmail(e.target.value);
-                setErrors((prev) => ({ ...prev, email: undefined }));
+                // Clear error when user starts typing
+                if (errors.email) {
+                  setErrors((prev) => ({ ...prev, email: undefined }));
+                }
               }}
-              className={`w-full px-4 py-3 rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-primary transition-all ${
-                errors.email ? "border-destructive" : "border-border"
+              onBlur={(e) => {
+                // Validate on blur for better UX
+                if (e.target.value && !emailSchema.safeParse(e.target.value).success) {
+                  setErrors((prev) => ({ 
+                    ...prev, 
+                    email: "Please enter a valid email address" 
+                  }));
+                }
+              }}
+              className={`w-full px-4 py-3 rounded-lg border bg-background focus:outline-none focus:ring-2 transition-all ${
+                errors.email 
+                  ? "border-destructive focus:ring-destructive" 
+                  : "border-border focus:ring-primary"
               }`}
               placeholder="you@example.com"
               autoComplete="email"
             />
             {errors.email && (
-              <p className="text-sm text-destructive mt-1">{errors.email}</p>
+              <motion.p 
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="text-sm text-destructive mt-1.5 flex items-center gap-1.5"
+              >
+                <span>⚠️</span>
+                <span>{errors.email}</span>
+              </motion.p>
             )}
           </div>
 

@@ -70,6 +70,17 @@ export function CreateWizard() {
   // Track mounted state to prevent state updates after unmount
   const isMountedRef = useRef(true);
 
+  // Navigation helpers (defined early for use in effects)
+  const canGoBack = state.step !== 'type';
+
+  const handleBack = () => {
+    if (state.step === 'type') {
+      navigate('/');
+    } else {
+      goBack();
+    }
+  };
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -719,16 +730,6 @@ export function CreateWizard() {
       if (isMountedRef.current) {
         setIsSubmitting(false);
       }
-    }
-  };
-
-  const canGoBack = state.step !== 'type';
-
-  const handleBack = () => {
-    if (state.step === 'type') {
-      navigate('/');
-    } else {
-      goBack();
     }
   };
 
