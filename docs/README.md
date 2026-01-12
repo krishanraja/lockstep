@@ -166,13 +166,13 @@ lockstep/
 
 ## Pricing Tiers
 
-| Tier | Price | Guests | Nudges |
-|------|-------|--------|--------|
-| Free | $0 | 15 | 3 |
-| Pro | $29/event | 75 | 20 |
-| Wedding | $49/event | 150 | Unlimited |
-| Business | $99/event | 200 | Unlimited |
-| Annual Pro | $149/year | 75 | Unlimited events |
+| Tier | Price | Guests | Nudges | Features |
+|------|-------|--------|--------|----------|
+| Free | $0 | 15 | 3 | Unlimited events |
+| Pro | $29/event | 75 | 20 | AI summaries, WhatsApp |
+| Wedding | $49/event | 150 | Unlimited | Priority AI, CSV export |
+| Business | $99/event | 200 | Unlimited | Team access, Analytics |
+| Annual Pro | $149/year | 75 | 20 | Unlimited events, Pro features |
 
 ---
 

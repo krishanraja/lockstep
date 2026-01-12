@@ -28,9 +28,11 @@ Lockstep introduces **block-based RSVPs**—guests respond to individual time bl
 
 ## Business Model
 
-- **Free tier**: 1 event, up to 25 guests
-- **Pro tier**: Unlimited events, up to 100 guests/event, advanced analytics
-- **Enterprise**: Custom limits, API access, white-labeling
+- **Free tier**: Unlimited events, up to 15 guests/event, 3 nudges/event
+- **Pro tier**: $29/event, up to 75 guests, 20 nudges, AI summaries, WhatsApp
+- **Wedding tier**: $49/event, up to 150 guests, unlimited nudges, priority AI, CSV export
+- **Business tier**: $99/event, up to 200 guests, unlimited features, team access, analytics
+- **Annual Pro**: $149/year, unlimited events with Pro features
 
 ## Current Status
 

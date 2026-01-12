@@ -156,18 +156,26 @@ When required: Lockstep™
 
 ### Logo Files
 
-Located in `/src/assets/` and `/public/`:
+Located in `/public/` (served from root) and `/src/assets/`:
 
-| File | Format | Use |
-|------|--------|-----|
-| `lockstep-logo-light.png` | PNG | Dark backgrounds |
-| `lockstep-logo-dark.png` | PNG | Light backgrounds |
-| `lockstep-icon.png` | PNG | Favicon, small spaces |
+| File | Format | Location | Use |
+|------|--------|----------|-----|
+| `lockstep-logo-light.png` | PNG | `/public/` | Dark backgrounds, email templates |
+| `lockstep-icon.png` | PNG | `/public/` | Favicon, small spaces |
+| `lockstep-logo-light.png` | PNG | `/src/assets/` | React component imports |
 
 ### Color Codes
 
-**Primary Black**: `hsl(0 0% 9%)` / `#171717`
-**Primary White**: `hsl(0 0% 98%)` / `#FAFAFA`
+**Primary Blue-Violet**: `hsl(233 100% 68%)` / `#5B6CFF` - Primary actions, links, focus states
+**Background Dark**: `hsl(220 20% 7%)` / `#0E1116` - Main background (dark charcoal)
+**Foreground Light**: `hsl(216 33% 97%)` / `#F5F7FA` - Primary text (soft off-white)
+**Button Background**: `hsl(216 33% 97%)` / `#F5F7FA` - Light button backgrounds
+**Button Text**: `hsl(220 20% 10%)` / `#1A1D24` - Dark text on buttons
+
+**Status Colors**:
+- **Confirmed/In**: `hsl(156 52% 50%)` / `#3FB984` (muted green)
+- **Maybe/Pending**: `hsl(38 72% 65%)` / `#E6B566` (amber)
+- **Out/Locked**: `hsl(0 52% 62%)` / `#D46A6A` (restrained red)
 
 ### Typography
 

@@ -8,50 +8,66 @@ Lockstep uses a design system built on Tailwind CSS with shadcn/ui components. A
 
 ### Semantic Tokens
 
-All colors are defined as HSL values in `src/index.css`:
+All colors are defined as HSL values in `src/index.css`. Lockstep uses a dark-first design system with a blue-violet primary color:
 
 ```css
 :root {
-  /* Backgrounds */
-  --background: 0 0% 100%;        /* Main background */
-  --foreground: 0 0% 3.9%;        /* Primary text */
+  /* Core Palette - Deep, immersive dark 
+     Background: #0E1116 or #111418 (near-black charcoal)
+     Foreground: #F5F7FA (soft off-white)
+  */
+  --background: 220 20% 7%;        /* Main background - dark charcoal */
+  --foreground: 216 33% 97%;        /* Primary text - soft off-white */
   
   /* Component colors */
-  --card: 0 0% 100%;
-  --card-foreground: 0 0% 3.9%;
-  --popover: 0 0% 100%;
-  --popover-foreground: 0 0% 3.9%;
+  --card: 220 20% 10%;
+  --card-foreground: 216 33% 97%;
+  --popover: 220 20% 10%;
+  --popover-foreground: 216 33% 97%;
   
-  /* Brand colors */
-  --primary: 0 0% 9%;             /* Primary actions */
-  --primary-foreground: 0 0% 98%;
-  --secondary: 0 0% 96.1%;        /* Secondary actions */
-  --secondary-foreground: 0 0% 9%;
+  /* Primary - Decisive blue-violet #5B6CFF 
+     Signals seriousness, works perfectly in dark mode
+  */
+  --primary: 233 100% 68%;          /* Primary actions - blue-violet */
+  --primary-foreground: 0 0% 100%; /* White text on primary */
+  --primary-glow: 233 100% 78%;    /* Glow effect variant */
   
-  /* State colors */
-  --muted: 0 0% 96.1%;
-  --muted-foreground: 0 0% 45.1%;
-  --accent: 0 0% 96.1%;
-  --accent-foreground: 0 0% 9%;
-  --destructive: 0 84.2% 60.2%;
-  --destructive-foreground: 0 0% 98%;
+  --secondary: 220 20% 14%;
+  --secondary-foreground: 216 33% 97%;
+  
+  /* Status Colors - Muted, emotionally neutral */
+  --confirmed: 156 52% 50%;         /* Muted green - #3FB984 */
+  --maybe: 38 72% 65%;             /* Amber - #E6B566 */
+  --out: 0 52% 62%;                /* Restrained red - #D46A6A */
+  
+  --muted: 220 15% 18%;
+  --muted-foreground: 220 10% 60%;
+  --accent: 233 100% 68%;
+  --accent-foreground: 0 0% 100%;
+  
+  --destructive: 0 52% 62%;
+  --destructive-foreground: 0 0% 100%;
   
   /* UI elements */
-  --border: 0 0% 89.8%;
-  --input: 0 0% 89.8%;
-  --ring: 0 0% 3.9%;
+  --border: 220 15% 18%;
+  --input: 220 15% 14%;
+  --ring: 233 100% 68%;
+  
+  /* Button colors - Light #F5F7FA with dark text */
+  --button-bg: 216 33% 97%;
+  --button-text: 220 20% 10%;
 }
 ```
 
 ### Dark Mode
 
-Dark mode tokens are defined in `.dark` class:
+The default theme is dark. The `.dark` class maintains similar values with slight adjustments:
 
 ```css
 .dark {
-  --background: 0 0% 3.9%;
-  --foreground: 0 0% 98%;
-  /* ... inverted values */
+  --background: 220 20% 7%;
+  --foreground: 216 33% 97%;
+  /* Similar structure with refined values */
 }
 ```
 

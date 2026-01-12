@@ -17,11 +17,11 @@ Lockstep's visual identity balances **professionalism** with **approachability**
 
 ### Primary Logo
 
-| File | Use Case |
-|------|----------|
-| `lockstep-logo-light.png` | On dark backgrounds |
-| `lockstep-logo-dark.png` | On light backgrounds |
-| `lockstep-icon.png` | Favicon, app icon, small spaces |
+| File | Location | Use Case |
+|------|----------|----------|
+| `lockstep-logo-light.png` | `/public/` | On dark backgrounds, email templates (served from root) |
+| `lockstep-logo-light.png` | `/src/assets/` | React component imports |
+| `lockstep-icon.png` | `/public/` | Favicon, app icon, small spaces |
 
 ### Clear Space
 
@@ -48,27 +48,29 @@ Maintain minimum clear space equal to the height of the "L" in Lockstep around a
 
 | Name | HSL | Hex | Use |
 |------|-----|-----|-----|
-| Ink | 0 0% 9% | #171717 | Primary text, buttons |
-| Snow | 0 0% 98% | #FAFAFA | Backgrounds |
-| Mist | 0 0% 96% | #F5F5F5 | Secondary backgrounds |
+| Primary Blue-Violet | 233 100% 68% | #5B6CFF | Primary actions, buttons, links, focus states |
+| Background Dark | 220 20% 7% | #0E1116 | Main background (dark charcoal) |
+| Foreground Light | 216 33% 97% | #F5F7FA | Primary text (soft off-white) |
+| Card Background | 220 20% 10% | #181B20 | Card/surface backgrounds |
+| Button Light | 216 33% 97% | #F5F7FA | Light button backgrounds |
+| Button Text Dark | 220 20% 10% | #1A1D24 | Dark text on light buttons |
 
-### Accent Palette
+### Status Colors
 
 | Name | HSL | Hex | Use |
 |------|-----|-----|-----|
-| Ocean | 210 100% 50% | #0080FF | Links, focus states |
-| Coral | 16 100% 66% | #FF7A59 | Warnings, attention |
-| Mint | 160 84% 39% | #10B981 | Success, confirmations |
-| Slate | 215 16% 47% | #64748B | Muted text |
+| Confirmed | 156 52% 50% | #3FB984 | Success states, confirmed RSVPs |
+| Maybe | 38 72% 65% | #E6B566 | Pending states, maybe RSVPs |
+| Out | 0 52% 62% | #D46A6A | Error states, declined RSVPs |
 
 ### Semantic Colors
 
-| Purpose | Token | Light Mode | Dark Mode |
-|---------|-------|------------|-----------|
-| Success | `--success` | Mint | Mint |
-| Warning | `--warning` | Coral | Coral |
-| Error | `--destructive` | Red | Red |
-| Info | `--info` | Ocean | Ocean |
+| Purpose | Token | Value |
+|---------|-------|-------|
+| Success | `--confirmed` | #3FB984 (muted green) |
+| Warning | `--maybe` | #E6B566 (amber) |
+| Error | `--destructive` | #D46A6A (restrained red) |
+| Primary | `--primary` | #5B6CFF (blue-violet) |
 
 ---
 
