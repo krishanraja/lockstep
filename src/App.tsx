@@ -16,6 +16,10 @@ const RSVPPage = lazy(() => import("./pages/RSVPPage"));
 const EventDetail = lazy(() => import("./pages/EventDetail"));
 const Pricing = lazy(() => import("./pages/Pricing"));
 const Profile = lazy(() => import("./pages/Profile"));
+const TermsOfService = lazy(() => import("./pages/TermsOfService"));
+const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
+const FAQ = lazy(() => import("./pages/FAQ"));
+const Blog = lazy(() => import("./pages/Blog"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -44,14 +48,18 @@ const App = () => (
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/rsvp/:token" element={<RSVPPage />} />
-              
+              <Route path="/pricing" element={<Pricing />} />
+              <Route path="/terms" element={<TermsOfService />} />
+              <Route path="/privacy" element={<PrivacyPolicy />} />
+              <Route path="/faq" element={<FAQ />} />
+              <Route path="/blog" element={<Blog />} />
+
               {/* Organiser routes */}
               <Route path="/create" element={<CreateEvent />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/events/:id" element={<EventDetail />} />
-              <Route path="/pricing" element={<Pricing />} />
               <Route path="/profile" element={<Profile />} />
-              
+
               {/* Catch-all */}
               <Route path="*" element={<NotFound />} />
             </Routes>

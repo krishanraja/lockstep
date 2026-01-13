@@ -40,12 +40,32 @@ const Hero = () => {
               </div>
               <img src={lockstepLogoLight} alt="Lockstep" className="h-5 md:h-6" />
             </div>
-            <Link 
-              to="/auth" 
-              className="relative z-30 text-sm text-primary hover:text-primary/80 transition-colors px-3 py-2 -mr-3"
-            >
-              Sign in
-            </Link>
+            <div className="flex items-center gap-4 md:gap-6">
+              <Link
+                to="/faq"
+                className="hidden md:inline-block relative z-30 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                FAQ
+              </Link>
+              <Link
+                to="/blog"
+                className="hidden md:inline-block relative z-30 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Blog
+              </Link>
+              <Link
+                to="/pricing"
+                className="hidden md:inline-block relative z-30 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Pricing
+              </Link>
+              <Link
+                to="/auth"
+                className="relative z-30 text-sm text-primary hover:text-primary/80 transition-colors px-3 py-2 -mr-3"
+              >
+                Sign in
+              </Link>
+            </div>
           </div>
         </Reveal>
       </div>

@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import lockstepLogoLight from "@/assets/lockstep-logo-light.png";
 
 const Footer = () => {
@@ -6,32 +7,37 @@ const Footer = () => {
       <div className="max-w-5xl mx-auto">
         <div className="flex flex-col md:flex-row items-center justify-between gap-6">
           {/* Logo */}
-          <img 
-            src={lockstepLogoLight} 
-            alt="Lockstep" 
-            className="h-6 opacity-60"
-          />
+          <Link to="/">
+            <img
+              src={lockstepLogoLight}
+              alt="Lockstep"
+              className="h-6 opacity-60 hover:opacity-100 transition-opacity duration-300"
+            />
+          </Link>
 
           {/* Links */}
           <div className="flex items-center gap-8 text-sm text-muted-foreground">
-            <a href="#" className="hover:text-foreground transition-colors duration-300">
-              How it works
-            </a>
-            <a href="#" className="hover:text-foreground transition-colors duration-300">
+            <Link to="/faq" className="hover:text-foreground transition-colors duration-300">
+              FAQ
+            </Link>
+            <Link to="/blog" className="hover:text-foreground transition-colors duration-300">
+              Blog
+            </Link>
+            <Link to="/pricing" className="hover:text-foreground transition-colors duration-300">
               Pricing
-            </a>
-            <a href="#" className="hover:text-foreground transition-colors duration-300">
+            </Link>
+            <Link to="/privacy" className="hover:text-foreground transition-colors duration-300">
               Privacy
-            </a>
-            <a href="#" className="hover:text-foreground transition-colors duration-300">
+            </Link>
+            <Link to="/terms" className="hover:text-foreground transition-colors duration-300">
               Terms
-            </a>
+            </Link>
           </div>
         </div>
 
         <div className="mt-8 pt-8 border-t border-border text-center">
           <p className="text-xs text-muted-foreground/60">
-            © 2025 Lockstep. Group decisions, resolved.
+            © 2026 Lockstep. Group decisions, resolved.
           </p>
         </div>
       </div>
