@@ -60,6 +60,18 @@ const Hero = () => {
                 Pricing
               </Link>
               <Link
+                to="/privacy"
+                className="hidden lg:inline-block relative z-30 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Privacy
+              </Link>
+              <Link
+                to="/terms"
+                className="hidden lg:inline-block relative z-30 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Terms
+              </Link>
+              <Link
                 to="/auth"
                 className="relative z-30 text-sm text-primary hover:text-primary/80 transition-colors px-3 py-2 -mr-3"
               >
