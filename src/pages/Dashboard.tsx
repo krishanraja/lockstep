@@ -1,5 +1,5 @@
 // Dashboard - Refactored with TanStack Query for stable, flicker-free loading
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Plus, Calendar, LogOut, Crown, User, Archive, Trash2, CheckSquare, Square } from 'lucide-react';
@@ -17,6 +17,10 @@ import { useRealtimeDashboard } from '@/hooks/use-realtime-events';
 const Dashboard = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  
+  // Select mode state for bulk actions
+  const [isSelectMode, setIsSelectMode] = useState(false);
+  const [selectedEvents, setSelectedEvents] = useState<Set<string>>(new Set());
   
   // Get current user with React Query (stable, cached)
   const { data: user, isLoading: userLoading } = useCurrentUser();

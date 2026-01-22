@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { Users, ChevronRight, Sparkles, RefreshCw, Share2, Send } from 'lucide-react';
+import { Users, ChevronRight, Sparkles, RefreshCw, Share2, Send, CheckSquare, Square } from 'lucide-react';
 import { format, differenceInDays } from 'date-fns';
 import type { Event, EventStats, AISummary } from '@/queries/event-queries';
 import { useAISummary } from '@/queries/event-queries';
@@ -12,10 +12,14 @@ interface EventCardProps {
   event: Event;
   stats: EventStats | null;
   index: number;
+  isSelectMode?: boolean;
+  isSelected?: boolean;
+  onToggleSelect?: (eventId: string) => void;
 }
 
 export const EventCard = ({ event, stats, index, isSelectMode = false, isSelected = false, onToggleSelect }: EventCardProps) => {
   const navigate = useNavigate();
+  const [isHovered, setIsHovered] = useState(false);
   
   // Fetch AI summary for active events with stats
   const { data: aiSummary, isLoading: aiLoading } = useAISummary(
@@ -43,6 +47,29 @@ export const EventCard = ({ event, stats, index, isSelectMode = false, isSelecte
 
   const daysUntil = getDaysUntil(event.start_date);
   const needsAttention = stats && stats.pendingCount >= 3;
+
+  // Quick action handlers
+  const handleQuickShare = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    // Get first guest's magic token for sharing
+    const { data: guests } = await supabase
+      .from('guests')
+      .select('magic_token')
+      .eq('event_id', event.id)
+      .not('magic_token', 'is', null)
+      .limit(1);
+    
+    if (guests && guests.length > 0 && guests[0].magic_token) {
+      const link = `${window.location.origin}/rsvp/${guests[0].magic_token}`;
+      await navigator.clipboard.writeText(link);
+    }
+  };
+
+  const handleQuickNudge = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    // Navigate to event detail page where nudge can be sent
+    navigate(`/events/${event.id}`);
+  };
 
   return (
     <motion.div
