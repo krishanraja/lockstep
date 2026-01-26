@@ -1,8 +1,8 @@
 // Dashboard - Refactored with TanStack Query for stable, flicker-free loading
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { Plus, Calendar, LogOut, Crown, User, Archive, Trash2, CheckSquare, Square } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Plus, Calendar, LogOut, Crown, User, Archive, Trash2, CheckSquare, Square, MoreVertical, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { UsageSummary } from '@/components/UsageIndicator';
 import { TIER_LIMITS } from '@/services/subscription';
@@ -21,6 +21,33 @@ const Dashboard = () => {
   // Select mode state for bulk actions
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [selectedEvents, setSelectedEvents] = useState<Set<string>>(new Set());
+  
+  // Dropdown menu state
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+  
+  // Handler to enter selection mode (called from menu or long-press)
+  const enterSelectMode = () => {
+    setIsSelectMode(true);
+    setIsMenuOpen(false);
+  };
+  
+  // Handler to exit selection mode
+  const exitSelectMode = () => {
+    setIsSelectMode(false);
+    setSelectedEvents(new Set());
+  };
   
   // Get current user with React Query (stable, cached)
   const { data: user, isLoading: userLoading } = useCurrentUser();
@@ -114,24 +141,7 @@ const Dashboard = () => {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {events.length > 0 && (
-              <button
-                onClick={() => {
-                  setIsSelectMode(!isSelectMode);
-                  if (isSelectMode) setSelectedEvents(new Set());
-                }}
-                className="p-2 rounded-full text-muted-foreground hover:text-foreground
-                  hover:bg-muted transition-colors"
-                aria-label={isSelectMode ? "Cancel selection" : "Select events"}
-                title={isSelectMode ? "Cancel" : "Select"}
-              >
-                {isSelectMode ? (
-                  <Square className="w-5 h-5" />
-                ) : (
-                  <CheckSquare className="w-5 h-5" />
-                )}
-              </button>
-            )}
+            {/* Profile button */}
             <button
               onClick={() => navigate('/profile')}
               className="p-2 rounded-full text-muted-foreground hover:text-primary
@@ -141,15 +151,56 @@ const Dashboard = () => {
             >
               <User className="w-5 h-5" />
             </button>
-            <button
-              onClick={handleSignOut}
-              className="p-2 rounded-full text-muted-foreground hover:text-foreground
-                hover:bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-              aria-label="Sign out"
-              title="Sign out"
-            >
-              <LogOut className="w-5 h-5" />
-            </button>
+            
+            {/* More menu (dropdown) */}
+            <div className="relative" ref={menuRef}>
+              <button
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                className="p-2 rounded-full text-muted-foreground hover:text-foreground
+                  hover:bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                aria-label="More options"
+                title="More options"
+              >
+                <MoreVertical className="w-5 h-5" />
+              </button>
+              
+              {/* Dropdown menu */}
+              <AnimatePresence>
+                {isMenuOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute right-0 top-full mt-2 w-48 bg-card border border-border/50 rounded-xl shadow-lg overflow-hidden z-50"
+                  >
+                    {events.length > 0 && (
+                      <button
+                        onClick={enterSelectMode}
+                        className="w-full px-4 py-3 text-left text-sm text-foreground hover:bg-muted/50 
+                          transition-colors flex items-center gap-3"
+                      >
+                        <CheckSquare className="w-4 h-4 text-muted-foreground" />
+                        Select events
+                      </button>
+                    )}
+                    <button
+                      onClick={() => {
+                        handleSignOut();
+                        setIsMenuOpen(false);
+                      }}
+                      className="w-full px-4 py-3 text-left text-sm text-foreground hover:bg-muted/50 
+                        transition-colors flex items-center gap-3 border-t border-border/50"
+                    >
+                      <LogOut className="w-4 h-4 text-muted-foreground" />
+                      Sign out
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+            
+            {/* Create event button */}
             <button
               onClick={() => navigate('/create')}
               className="w-10 h-10 rounded-full bg-primary flex items-center justify-center
@@ -213,60 +264,75 @@ const Dashboard = () => {
         ) : (
           // Events list
           <div className="space-y-4">
-            {/* Bulk actions bar */}
-            {isSelectMode && selectedEvents.size > 0 && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="sticky top-0 z-10 p-4 bg-card border border-border/50 rounded-2xl
-                  flex items-center justify-between gap-3 shadow-lg"
-              >
-                <span className="text-sm text-foreground font-medium">
-                  {selectedEvents.size} event{selectedEvents.size !== 1 ? 's' : ''} selected
-                </span>
-                <div className="flex gap-2">
-                  <button
-                    onClick={async () => {
-                      // Archive selected events
-                      for (const eventId of selectedEvents) {
-                        await supabase
-                          .from('events')
-                          .update({ status: 'archived' })
-                          .eq('id', eventId);
-                      }
-                      setSelectedEvents(new Set());
-                      setIsSelectMode(false);
-                      window.location.reload();
-                    }}
-                    className="px-3 py-1.5 rounded-lg bg-muted text-foreground text-sm font-medium
-                      hover:bg-muted/80 transition-colors flex items-center gap-1.5"
-                    aria-label={`Archive ${selectedEvents.size} events`}
-                  >
-                    <Archive className="w-4 h-4" />
-                    Archive
-                  </button>
-                  <button
-                    onClick={async () => {
-                      // Delete selected events (with confirmation)
-                      if (confirm(`Delete ${selectedEvents.size} event${selectedEvents.size !== 1 ? 's' : ''}? This cannot be undone.`)) {
-                        for (const eventId of selectedEvents) {
-                          await supabase.from('events').delete().eq('id', eventId);
-                        }
-                        setSelectedEvents(new Set());
-                        setIsSelectMode(false);
-                        window.location.reload();
-                      }
-                    }}
-                    className="px-3 py-1.5 rounded-lg bg-destructive/10 text-destructive text-sm font-medium
-                      hover:bg-destructive/20 transition-colors flex items-center gap-1.5"
-                    aria-label={`Delete ${selectedEvents.size} events`}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                    Delete
-                  </button>
-                </div>
-              </motion.div>
-            )}
+            {/* Selection mode header bar */}
+            <AnimatePresence>
+              {isSelectMode && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="sticky top-0 z-10 p-4 bg-primary/5 border border-primary/20 rounded-2xl
+                    flex items-center justify-between gap-3 shadow-lg backdrop-blur-sm"
+                >
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={exitSelectMode}
+                      className="p-1.5 rounded-lg hover:bg-muted/50 transition-colors"
+                      aria-label="Cancel selection"
+                    >
+                      <X className="w-5 h-5 text-muted-foreground" />
+                    </button>
+                    <span className="text-sm text-foreground font-medium">
+                      {selectedEvents.size === 0 
+                        ? 'Select events' 
+                        : `${selectedEvents.size} event${selectedEvents.size !== 1 ? 's' : ''} selected`}
+                    </span>
+                  </div>
+                  
+                  {selectedEvents.size > 0 && (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={async () => {
+                          // Archive selected events
+                          for (const eventId of selectedEvents) {
+                            await supabase
+                              .from('events')
+                              .update({ status: 'archived' })
+                              .eq('id', eventId);
+                          }
+                          exitSelectMode();
+                          window.location.reload();
+                        }}
+                        className="px-3 py-1.5 rounded-lg bg-muted text-foreground text-sm font-medium
+                          hover:bg-muted/80 transition-colors flex items-center gap-1.5"
+                        aria-label={`Archive ${selectedEvents.size} events`}
+                      >
+                        <Archive className="w-4 h-4" />
+                        Archive
+                      </button>
+                      <button
+                        onClick={async () => {
+                          // Delete selected events (with confirmation)
+                          if (confirm(`Delete ${selectedEvents.size} event${selectedEvents.size !== 1 ? 's' : ''}? This cannot be undone.`)) {
+                            for (const eventId of selectedEvents) {
+                              await supabase.from('events').delete().eq('id', eventId);
+                            }
+                            exitSelectMode();
+                            window.location.reload();
+                          }
+                        }}
+                        className="px-3 py-1.5 rounded-lg bg-destructive/10 text-destructive text-sm font-medium
+                          hover:bg-destructive/20 transition-colors flex items-center gap-1.5"
+                        aria-label={`Delete ${selectedEvents.size} events`}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        Delete
+                      </button>
+                    </div>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {/* Usage Summary for Free Tier */}
             {tier === 'free' && events.length > 0 && (
@@ -305,6 +371,11 @@ const Dashboard = () => {
                     }
                     return next;
                   });
+                }}
+                onLongPress={(eventId) => {
+                  // Enter selection mode and select this event
+                  setIsSelectMode(true);
+                  setSelectedEvents(new Set([eventId]));
                 }}
               />
             ))}
