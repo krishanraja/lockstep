@@ -108,8 +108,6 @@ export function PlacesAutocomplete({
         const apiKey = import.meta.env.VITE_GOOGLE_PLACES_API_KEY;
         if (!apiKey) {
           console.warn('[PlacesAutocomplete] Google Places API key not configured. Map features will be limited.');
-        } else {
-          console.log('[PlacesAutocomplete] Google Places API key configured');
         }
         
         await loadGoogleMapsAPI();
@@ -167,14 +165,12 @@ export function PlacesAutocomplete({
       return;
     }
     
-    console.log('[PlacesAutocomplete] Attempting to geocode:', address);
     setIsGeocoding(true);
     setGeocodeError(null);
     
     try {
       const result = await geocodeAddress(address);
       if (result) {
-        console.log('[PlacesAutocomplete] Geocoding successful:', result);
         onLocationSelect(result, result.formattedAddress);
         saveRecentLocation(result.formattedAddress);
         setGeocodeError(null);

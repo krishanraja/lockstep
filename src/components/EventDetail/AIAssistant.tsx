@@ -178,7 +178,7 @@ export const AIAssistant = ({
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: data?.summary || getDefaultResponse(input.trim(), stats),
+        content: data?.summary || getDefaultResponse(trimmedInput, stats),
         timestamp: new Date(),
       };
 

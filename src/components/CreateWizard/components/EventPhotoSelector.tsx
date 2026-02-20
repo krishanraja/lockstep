@@ -45,13 +45,9 @@ export function EventPhotoSelector({
     setError(null);
     
     try {
-      console.log('[EventPhotoSelector] Invoking fetch-pexels with query:', searchQuery);
-      
       const { data, error: fnError } = await supabase.functions.invoke('fetch-pexels', {
         body: { query: searchQuery, per_page: 12 },
       });
-      
-      console.log('[EventPhotoSelector] Response:', { data, error: fnError });
       
       if (fnError) {
         console.error('[EventPhotoSelector] Function error:', fnError);
@@ -80,10 +76,8 @@ export function EventPhotoSelector({
       }
       
       if (data?.photos) {
-        console.log('[EventPhotoSelector] Found', data.photos.length, 'photos');
         setPhotos(data.photos);
       } else {
-        console.log('[EventPhotoSelector] No photos in response');
         setPhotos([]);
       }
     } catch (err: any) {

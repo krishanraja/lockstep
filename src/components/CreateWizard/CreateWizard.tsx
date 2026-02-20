@@ -138,7 +138,6 @@ export function CreateWizard() {
       if (!isMountedRef.current) return;
       
       setUser(authUser);
-      console.log('[CreateWizard] Auth state checked:', authUser ? 'logged in' : 'logged out');
     };
 
     checkAuth();
@@ -147,7 +146,6 @@ export function CreateWizard() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (!isMountedRef.current) return;
       
-      console.log('[CreateWizard] Auth state changed:', event, session ? 'logged in' : 'logged out');
       setUser(session?.user ?? null);
     });
 
@@ -354,13 +352,6 @@ export function CreateWizard() {
       throw new Error('Missing required event data. Please go back and complete all steps.');
     }
 
-    console.log('[createEventWithData] Starting event creation', {
-      userId,
-      eventName: eventData.eventName,
-      template: eventData.template.id,
-      hasLocation: !!eventData.locationText,
-    });
-
     // Update progress: Connecting
     if (isMountedRef.current) setProgress('connecting');
 
@@ -374,7 +365,6 @@ export function CreateWizard() {
       if (!sessionResult.data.session) {
         throw new Error('No active session');
       }
-      console.log('[createEventWithData] Supabase connection verified, session active');
     } catch (connectionError: any) {
       console.error('[createEventWithData] Supabase connection check failed:', {
         error: connectionError.message,
@@ -391,8 +381,6 @@ export function CreateWizard() {
 
     // Create event with retry logic and timeout
     const event = await withRetry(async () => {
-      console.log('[createEventWithData] Inserting event into database...');
-      
       const eventPayload = {
         organiser_id: userId,
         title: eventData.eventName,
@@ -408,11 +396,6 @@ export function CreateWizard() {
         },
       };
       
-      console.log('[createEventWithData] Event payload:', {
-        ...eventPayload,
-        settings: eventPayload.settings,
-      });
-
       const { data: event, error: eventError } = await supabase
         .from("events")
         .insert(eventPayload)
@@ -434,7 +417,6 @@ export function CreateWizard() {
         throw new Error('Event creation returned no data');
       }
 
-      console.log('[createEventWithData] Event created successfully:', event.id);
       return event;
     }, retryConfig, OPERATION_TIMEOUT);
 
@@ -465,7 +447,6 @@ export function CreateWizard() {
         );
 
     if (blocks.length > 0) {
-      console.log(`[createEventWithData] Creating ${blocks.length} blocks...`);
       const blocksResult = await withTimeout(
         supabase.from("blocks").insert(
           blocks.map((block, index) => ({
@@ -483,13 +464,11 @@ export function CreateWizard() {
         console.error('[createEventWithData] Blocks insert error:', blocksResult.error);
         throw blocksResult.error;
       }
-      console.log('[createEventWithData] Blocks created successfully');
     }
 
     // Use custom questions if provided, otherwise use template
     const questions = eventData.customQuestions || eventData.template!.questions;
     if (questions.length > 0) {
-      console.log(`[createEventWithData] Creating ${questions.length} questions...`);
       const questionsResult = await withTimeout(
         supabase.from("questions").insert(
           questions.map((q, index) => ({
@@ -508,7 +487,6 @@ export function CreateWizard() {
         console.error('[createEventWithData] Questions insert error:', questionsResult.error);
         throw questionsResult.error;
       }
-      console.log('[createEventWithData] Questions created successfully');
     }
 
     // Use custom checkpoints if provided, otherwise generate from template
@@ -524,7 +502,6 @@ export function CreateWizard() {
       };
     });
     if (checkpoints.length > 0) {
-      console.log(`[createEventWithData] Creating ${checkpoints.length} checkpoints...`);
       const checkpointsResult = await withTimeout(
         supabase.from("checkpoints").insert(
           checkpoints.map((cp) => ({
@@ -541,7 +518,6 @@ export function CreateWizard() {
         console.error('[createEventWithData] Checkpoints insert error:', checkpointsResult.error);
         throw checkpointsResult.error;
       }
-      console.log('[createEventWithData] Checkpoints created successfully');
     }
 
     // Update progress: Finalizing
@@ -549,7 +525,6 @@ export function CreateWizard() {
 
     // Create guests if any with timeout
     if (eventData.guests.length > 0) {
-      console.log(`[createEventWithData] Creating ${eventData.guests.length} guests...`);
       const guestRecords = eventData.guests.map((g) => {
         // Check if it's a phone number or a name
         const isPhone = /^[+\d\s()-]+$/.test(g);
@@ -569,7 +544,6 @@ export function CreateWizard() {
         console.error('[createEventWithData] Guests insert error:', guestsResult.error);
         throw guestsResult.error;
       }
-      console.log('[createEventWithData] Guests created successfully');
 
       // Auto-send initial invites to guests with phone numbers
       const guestsWithPhone = (guestsResult.data || []).filter(
@@ -590,14 +564,12 @@ export function CreateWizard() {
             console.warn('[createEventWithData] Failed to send invite to', g.name, nudgeErr);
           }
         }
-        console.log(`[createEventWithData] Sent invites to ${guestsWithPhone.length} guests`);
       }
     }
 
     // Update progress: Complete
     if (isMountedRef.current) setProgress('complete');
 
-    console.log('[createEventWithData] Event creation completed successfully:', event.id);
     return event.id;
   };
 
@@ -712,7 +684,6 @@ export function CreateWizard() {
         return;
       }
 
-      console.log("[handleCreateEvent] Creating event for user:", userResult.data.user.id);
       const eventId = await createEventWithData(state, userResult.data.user.id);
       
       if (eventId) {

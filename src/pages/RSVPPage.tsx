@@ -432,21 +432,28 @@ const RSVPPage = () => {
     const formatICSDate = (iso: string) =>
       iso.replace(/[-:]/g, '').replace(/\.\d{3}/, '');
 
-    const vevents = inResponses.map(r => {
-      const block = blocks.find(b => b.id === r.blockId);
-      if (!block) return '';
-      const dtstart = block.start_time ? formatICSDate(block.start_time) : formatICSDate(event.start_date || new Date().toISOString());
-      const dtend = block.end_time ? formatICSDate(block.end_time) : dtstart;
-      return [
-        'BEGIN:VEVENT',
-        `DTSTART:${dtstart}`,
-        `DTEND:${dtend}`,
-        `SUMMARY:${event.title} — ${block.name}`,
-        event.location ? `LOCATION:${event.location}` : '',
-        `UID:${block.id}@lockstep`,
-        'END:VEVENT',
-      ].filter(Boolean).join('\r\n');
-    });
+    const dtstamp = formatICSDate(new Date().toISOString());
+
+    const vevents = inResponses
+      .map(r => {
+        const block = blocks.find(b => b.id === r.blockId);
+        if (!block) return null;
+        const dtstart = block.start_time
+          ? formatICSDate(block.start_time)
+          : formatICSDate(event.start_date || new Date().toISOString());
+        const dtend = block.end_time ? formatICSDate(block.end_time) : dtstart;
+        return [
+          'BEGIN:VEVENT',
+          `DTSTAMP:${dtstamp}`,
+          `DTSTART:${dtstart}`,
+          `DTEND:${dtend}`,
+          `SUMMARY:${event.title} — ${block.name}`,
+          event.location ? `LOCATION:${event.location}` : '',
+          `UID:${block.id}@lockstep`,
+          'END:VEVENT',
+        ].filter(Boolean).join('\r\n');
+      })
+      .filter((v): v is string => v !== null);
 
     const ics = [
       'BEGIN:VCALENDAR',
@@ -458,11 +465,12 @@ const RSVPPage = () => {
       'END:VCALENDAR',
     ].join('\r\n');
 
+    const safeTitle = event.title.replace(/[^\w\s-]/g, '').replace(/\s+/g, '-');
     const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${event.title.replace(/\s+/g, '-')}.ics`;
+    a.download = `${safeTitle}.ics`;
     a.click();
     URL.revokeObjectURL(url);
   };

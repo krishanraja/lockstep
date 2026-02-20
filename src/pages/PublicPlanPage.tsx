@@ -65,21 +65,32 @@ const PublicPlanPage = () => {
         const blocksList = blocksData || [];
         setBlocks(blocksList);
 
-        const blockCounts: BlockCount[] = [];
-        for (const block of blocksList) {
-          const { data: rsvps } = await supabase
+        // Fetch all RSVPs for the event in one query instead of one per block
+        if (blocksList.length > 0) {
+          const blockIds = blocksList.map(b => b.id);
+          const { data: allRsvps } = await supabase
             .from('rsvps')
-            .select('response')
-            .eq('block_id', block.id);
+            .select('block_id, response')
+            .in('block_id', blockIds);
 
-          blockCounts.push({
-            blockId: block.id,
-            inCount: rsvps?.filter(r => r.response === 'in').length || 0,
-            maybeCount: rsvps?.filter(r => r.response === 'maybe').length || 0,
-            outCount: rsvps?.filter(r => r.response === 'out').length || 0,
+          const rsvpsByBlock = new Map<string, typeof allRsvps>(
+            blockIds.map(id => [id, []])
+          );
+          for (const r of allRsvps || []) {
+            rsvpsByBlock.get(r.block_id)?.push(r);
+          }
+
+          const blockCounts: BlockCount[] = blockIds.map(id => {
+            const rsvps = rsvpsByBlock.get(id) || [];
+            return {
+              blockId: id,
+              inCount: rsvps.filter(r => r.response === 'in').length,
+              maybeCount: rsvps.filter(r => r.response === 'maybe').length,
+              outCount: rsvps.filter(r => r.response === 'out').length,
+            };
           });
+          setCounts(blockCounts);
         }
-        setCounts(blockCounts);
       } catch {
         setError('Failed to load event');
       } finally {

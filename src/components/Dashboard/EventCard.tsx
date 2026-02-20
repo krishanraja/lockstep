@@ -94,14 +94,23 @@ export const EventCard = ({ event, stats, index, isSelectMode = false, isSelecte
   const needsAttention = stats && stats.pendingCount >= 3;
 
   const [quickShareCopied, setQuickShareCopied] = useState(false);
+  const quickShareTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (quickShareTimer.current) clearTimeout(quickShareTimer.current);
+    };
+  }, []);
 
   const handleQuickShare = async (e: React.MouseEvent) => {
     e.stopPropagation();
     const link = `${window.location.origin}/plan/${event.id}`;
     try {
       await navigator.clipboard.writeText(link);
+      if (quickShareTimer.current) clearTimeout(quickShareTimer.current);
       setQuickShareCopied(true);
-      setTimeout(() => setQuickShareCopied(false), 2000);
+      quickShareTimer.current = setTimeout(() => setQuickShareCopied(false), 2000);
     } catch { /* clipboard unavailable */ }
   };
 
@@ -241,9 +250,9 @@ export const EventCard = ({ event, stats, index, isSelectMode = false, isSelecte
         </div>
       )}
 
-      {/* AI Summary */}
+      {/* AI Summary — only render once card is in view to avoid "No summary available" flash */}
       <AnimatePresence>
-        {event.status === 'active' && (
+        {event.status === 'active' && isInView && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
@@ -257,10 +266,13 @@ export const EventCard = ({ event, stats, index, isSelectMode = false, isSelecte
                   <RefreshCw className="w-3 h-3 animate-spin" />
                   Analyzing...
                 </div>
+              ) : aiSummary?.summary ? (
+                <p className="text-sm text-foreground">{aiSummary.summary}</p>
               ) : (
-                <p className="text-sm text-foreground">
-                  {aiSummary?.summary || 'No summary available.'}
-                </p>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <RefreshCw className="w-3 h-3 animate-spin" />
+                  Analyzing...
+                </div>
               )}
             </div>
           </motion.div>

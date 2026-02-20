@@ -112,7 +112,7 @@ const Hero = () => {
           {/* Trust signal */}
           <Reveal delay={0.6}>
             <p className="mt-4 text-xs text-muted-foreground/60">
-              Free for small groups • No account required
+              Free for small groups • Guests never need an account
             </p>
           </Reveal>
         </div>

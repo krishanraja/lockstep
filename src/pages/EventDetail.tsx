@@ -259,8 +259,7 @@ const EventDetail = () => {
   useRealtimeEvents({
     eventId: id || '',
     enabled: !!id && !isLoading,
-    onUpdate: useCallback((table: string) => {
-      console.log(`[EventDetail] Real-time update on ${table}`);
+    onUpdate: useCallback((_table: string) => {
       // Trigger a re-fetch by incrementing counter
       setRealtimeUpdateCounter(c => c + 1);
     }, []),
