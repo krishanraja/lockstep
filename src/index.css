@@ -237,6 +237,25 @@
   .text-button-text {
     color: hsl(var(--button-text));
   }
+
+  /* ✨ FIXED: Keyboard focus ring (subtle glow instead of MS Word blue ring) */
+  *:focus-visible {
+    outline: none !important;
+    box-shadow: 0 0 0 2px rgba(92, 111, 255, 0.2) !important;
+  }
+
+  /* ✨ FIXED: Text cursor only on inputs, not on body/div elements */
+  body, button, a, div:not([contenteditable="true"]) {
+    cursor: default !important;
+  }
+
+  button, a, [role="button"], [onclick] {
+    cursor: pointer !important;
+  }
+
+  input, textarea, [contenteditable="true"] {
+    cursor: text !important;
+  }
 }
 
 /* Complex keyframe animations */
