@@ -16,6 +16,7 @@ interface PricingCardProps {
   tier: PricingTier;
   isPopular?: boolean;
   isCurrentPlan?: boolean;
+  isRecommended?: boolean;
   eventId?: string;
   onSelect: (tier: PricingTier) => void;
   isLoading?: boolean;
@@ -293,7 +294,7 @@ const Pricing = () => {
         </motion.div>
 
         {/* Pricing grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4 mb-12">
           {tiers.map((tier, index) => (
             <motion.div
               key={tier}

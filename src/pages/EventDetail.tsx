@@ -60,7 +60,10 @@ interface Block {
 
 interface Question {
   id: string;
-  question_text: string;
+  prompt: string;
+  type: string;
+  options: string[] | null;
+  required: boolean | null;
   order_index?: number;
 }
 
@@ -120,6 +123,7 @@ const EventDetail = () => {
   }, [activeTab, id]);
   const [copiedLink, setCopiedLink] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
+  const [infoMessage, setInfoMessage] = useState<string | null>(null);
   const [realtimeUpdateCounter, setRealtimeUpdateCounter] = useState(0);
   const [showEditModal, setShowEditModal] = useState(false);
 
@@ -311,22 +315,14 @@ const EventDetail = () => {
 
   const handleShare = async () => {
     setShareError(null);
-    
-    if (guests.length === 0) {
-      // Show message that guests need to be added first
-      setShareError('Please add guests to your event before sharing. Go to the Guests tab to add guests.');
-      return;
-    }
-    
-    // Copy the first guest's RSVP link as an example
-    const firstGuest = guests.find(g => g.magic_token);
-    if (firstGuest?.magic_token) {
-      const link = `${window.location.origin}/rsvp/${firstGuest.magic_token}`;
+    // Copy the public plan link — guests receive personal RSVP links via SMS/WhatsApp
+    const link = `${window.location.origin}/plan/${id}`;
+    try {
       await navigator.clipboard.writeText(link);
       setCopiedLink(true);
       setTimeout(() => setCopiedLink(false), 2000);
-    } else {
-      setShareError('No RSVP links available. Please add guests with contact information first.');
+    } catch {
+      setShareError('Could not copy link. Please copy it manually: ' + link);
     }
   };
 
@@ -370,8 +366,8 @@ const EventDetail = () => {
   };
 
   const handleScheduleReminder = () => {
-    // Show message that this feature is coming soon
-    setShareError('Scheduled reminders are coming soon! For now, use the "Nudge" button to send reminders manually.');
+    setInfoMessage('Scheduled reminders are coming soon. Use the Nudge button to send reminders now.');
+    setTimeout(() => setInfoMessage(null), 4000);
   };
 
   // Guest management functions
@@ -592,6 +588,7 @@ const EventDetail = () => {
               <AIAssistant
                 eventId={id!}
                 eventTitle={event.title}
+                daysUntilEvent={daysUntilEvent}
                 stats={stats}
                 blocks={blocks}
                 onAction={(action) => {
@@ -645,6 +642,17 @@ const EventDetail = () => {
                 </motion.div>
               )}
 
+              {/* Info message toast (non-error) */}
+              {infoMessage && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="p-3 rounded-xl bg-primary/10 border border-primary/20"
+                >
+                  <p className="text-sm text-primary">{infoMessage}</p>
+                </motion.div>
+              )}
+
               {/* Link copied toast */}
               {copiedLink && (
                 <motion.div
@@ -656,7 +664,7 @@ const EventDetail = () => {
                     flex items-center gap-2 shadow-lg"
                 >
                   <CheckIcon className="w-4 h-4" />
-                  Link copied to clipboard!
+                  Plan link copied!
                 </motion.div>
               )}
             </motion.div>

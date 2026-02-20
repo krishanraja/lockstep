@@ -65,19 +65,15 @@ export const PhoneVerification = ({
     }
   }, [cooldown]);
 
-  const formatPhoneNumber = (value: string) => {
-    // Remove non-digits
-    return value.replace(/\D/g, '');
-  };
-
   const handleSendOTP = async () => {
-    const cleanNumber = formatPhoneNumber(phoneNumber);
-    if (cleanNumber.length < 6) {
-      setError('Please enter a valid phone number');
+    const { validatePhone } = await import('@/lib/phoneValidator');
+    const result = validatePhone(`${countryCode}${phoneNumber.replace(/\D/g, '')}`);
+    if (!result.valid || !result.e164) {
+      setError(result.error || 'Please enter a valid phone number');
       return;
     }
 
-    const fullPhone = `${countryCode}${cleanNumber}`;
+    const fullPhone = result.e164;
     setIsLoading(true);
     setError(null);
 

@@ -17,6 +17,7 @@ import { supabase } from '@/integrations/supabase/client';
 interface AIAssistantProps {
   eventId: string;
   eventTitle: string;
+  daysUntilEvent: number | null;
   stats: {
     totalGuests: number;
     respondedCount: number;
@@ -53,7 +54,8 @@ interface Insight {
 
 export const AIAssistant = ({ 
   eventId, 
-  eventTitle, 
+  eventTitle,
+  daysUntilEvent,
   stats, 
   blocks,
   onAction 
@@ -162,13 +164,14 @@ export const AIAssistant = ({
       // Call AI to generate response
       const { data, error } = await supabase.functions.invoke('generate-summary', {
         body: {
+          eventId,
           eventTitle,
           totalGuests: stats?.totalGuests || 0,
           respondedCount: stats?.respondedCount || 0,
           pendingCount: stats?.pendingCount || 0,
-          daysUntilEvent: 7, // Would calculate from actual date
-          userQuery: input.trim(),
-          summaryType: 'chat',
+          daysUntilEvent: daysUntilEvent ?? 0,
+          userQuery: trimmedInput,
+          summaryType: 'suggestions',
         },
       });
 

@@ -42,7 +42,7 @@ serve(async (req: Request) => {
 
     // Get Twilio credentials
     const accountSid = Deno.env.get('TWILIO_ACCOUNT_SID');
-    const authToken = Deno.env.get('TWILIO_AUTH_TOKEN');
+    const authToken = Deno.env.get('TWILIO_API_SECRET');
     const fromNumber = Deno.env.get('TWILIO_PHONE_NUMBER');
 
     if (!accountSid || !authToken || !fromNumber) {

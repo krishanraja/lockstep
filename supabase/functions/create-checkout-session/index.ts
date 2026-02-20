@@ -1,57 +1,97 @@
-// Supabase Edge Function: Create Stripe Checkout Session
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders, handleCors } from '../_shared/cors.ts';
 
 interface RequestBody {
-  userId: string;
-  email: string;
-  tier: 'pro';
+  tier: string;
+  eventId?: string;
+  successUrl: string;
+  cancelUrl: string;
 }
 
 serve(async (req: Request) => {
-  // Handle CORS preflight
   const corsResponse = handleCors(req);
   if (corsResponse) return corsResponse;
 
   try {
     const STRIPE_SECRET_KEY = Deno.env.get('STRIPE_SECRET_KEY');
-    
     if (!STRIPE_SECRET_KEY) {
-      console.error('[create-checkout-session] CRITICAL: STRIPE_SECRET_KEY not configured');
+      console.error('[create-checkout-session] STRIPE_SECRET_KEY not configured');
       return new Response(
         JSON.stringify({ error: 'Payment system not configured' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
+    }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Authenticate the caller
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Missing authorization' }), {
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser(
+      authHeader.replace('Bearer ', ''),
+    );
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     const body: RequestBody = await req.json();
-    const { userId, email, tier } = body;
+    const { tier, eventId, successUrl, cancelUrl } = body;
 
-    if (!userId || !email) {
-      return new Response(
-        JSON.stringify({ error: 'User ID and email are required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    if (!tier || !successUrl || !cancelUrl) {
+      return new Response(JSON.stringify({ error: 'tier, successUrl, and cancelUrl are required' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
-    // Create Stripe checkout session
+    // Look up the Stripe Price ID from the database
+    const { data: product, error: productError } = await supabase
+      .from('stripe_products')
+      .select('stripe_price_id, is_subscription')
+      .eq('tier', tier)
+      .single();
+
+    if (productError || !product?.stripe_price_id) {
+      console.error('[create-checkout-session] Price not found for tier:', tier, productError);
+      return new Response(JSON.stringify({ error: 'Invalid pricing tier' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const mode = product.is_subscription ? 'subscription' : 'payment';
+
+    const params: Record<string, string> = {
+      mode,
+      'customer_email': user.email || '',
+      'client_reference_id': user.id,
+      'success_url': successUrl,
+      'cancel_url': cancelUrl,
+      'line_items[0][price]': product.stripe_price_id,
+      'line_items[0][quantity]': '1',
+      'metadata[user_id]': user.id,
+      'metadata[tier]': tier,
+    };
+
+    if (eventId) {
+      params['metadata[event_id]'] = eventId;
+    }
+
     const response = await fetch('https://api.stripe.com/v1/checkout/sessions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${STRIPE_SECRET_KEY}`,
         'Content-Type': 'application/x-www-form-urlencoded',
       },
-      body: new URLSearchParams({
-        'mode': 'subscription',
-        'customer_email': email,
-        'client_reference_id': userId,
-        'success_url': `${req.headers.get('origin') || 'https://inlockstep.ai'}/profile?upgrade=success`,
-        'cancel_url': `${req.headers.get('origin') || 'https://inlockstep.ai'}/profile?upgrade=cancelled`,
-        'line_items[0][price]': 'price_1ProLiveFromStripeKey', // Replace with actual Stripe Price ID
-        'line_items[0][quantity]': '1',
-        'metadata[user_id]': userId,
-        'metadata[tier]': tier,
-      }),
+      body: new URLSearchParams(params),
     });
 
     if (!response.ok) {
@@ -61,22 +101,17 @@ serve(async (req: Request) => {
     }
 
     const session = await response.json();
-    
-    console.log(`[create-checkout-session] Created session for user ${userId}`);
+    console.log(`[create-checkout-session] Created session for user ${user.id}, tier ${tier}`);
 
     return new Response(
-      JSON.stringify({ 
-        url: session.url,
-        sessionId: session.id,
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ url: session.url, sessionId: session.id }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   } catch (error) {
     console.error('[create-checkout-session] Error:', error);
-    
     return new Response(
       JSON.stringify({ error: 'Failed to create checkout session' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   }
 });

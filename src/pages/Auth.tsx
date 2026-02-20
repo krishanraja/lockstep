@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { z } from "zod";
+import lockstepIcon from "@/assets/lockstep-icon.png";
 
 const emailSchema = z.string().email("Please enter a valid email address");
 const passwordSchema = z.string().min(6, "Password must be at least 6 characters");
@@ -172,11 +173,7 @@ const Auth = () => {
       }
       
       // Set error state for inline display
-      if (isLogin || authMethod === 'magic-link') {
-        setErrors({ email: message });
-      } else {
-        setErrors({ email: message });
-      }
+      setErrors({ email: message });
     } finally {
       setIsLoading(false);
     }
@@ -194,7 +191,7 @@ const Auth = () => {
         <div className="text-center mb-8">
           <button onClick={() => navigate("/")} className="inline-block">
             <img
-              src="/lockstep-icon.png"
+              src={lockstepIcon}
               alt="Lockstep"
               className="w-12 h-12 mx-auto mb-4 rounded-lg bg-[#F5F7FA] p-2"
             />

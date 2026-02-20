@@ -117,6 +117,7 @@ async function generateAISummary(
 
     const { data, error } = await supabase.functions.invoke('generate-summary', {
       body: {
+        eventId: event.id,
         eventTitle: event.title,
         totalGuests: stats.totalGuests,
         respondedCount: stats.respondedCount,
@@ -193,8 +194,8 @@ export function useAISummary(event: Event | null, stats: EventStats | null) {
     queryKey: eventKeys.summary(event?.id || ''),
     queryFn: () => generateAISummary(event!, stats!),
     enabled: !!event && !!stats && event.status === 'active',
-    staleTime: 5 * 60 * 1000, // AI summaries stay fresh for 5 minutes
-    gcTime: 10 * 60 * 1000,
+    staleTime: 10 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
   });
 }
 

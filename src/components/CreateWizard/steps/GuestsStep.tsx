@@ -57,25 +57,14 @@ function isContactPickerSupported(): boolean {
   return 'contacts' in navigator && 'ContactsManager' in window;
 }
 
-// Normalize phone numbers for consistency
+import { normalizeToE164, isValidPhone } from '@/lib/phoneValidator';
+
 function normalizePhoneNumber(phone: string): string {
-  // Remove all non-digit characters except + at the start
-  const cleaned = phone.replace(/[^\d+]/g, '');
-  // If it starts with a country code, keep it; otherwise assume it's a local number
-  return cleaned;
+  return normalizeToE164(phone) || phone.replace(/[^\d+]/g, '');
 }
 
-// Validate phone number format
 function isValidPhoneNumber(phone: string): boolean {
-  // Check if it's a phone number (contains digits, may have + at start)
-  const phonePattern = /^\+?[\d\s()-]+$/;
-  if (!phonePattern.test(phone)) return false;
-  
-  // Remove all non-digits except + at start
-  const digits = phone.replace(/[^\d+]/g, '');
-  // Phone should have at least 7 digits (minimum valid phone number)
-  const digitCount = digits.replace('+', '').length;
-  return digitCount >= 7 && digitCount <= 15;
+  return isValidPhone(phone);
 }
 
 // Check if string looks like a phone number

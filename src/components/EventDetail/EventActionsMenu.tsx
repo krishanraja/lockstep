@@ -1,14 +1,13 @@
 // EventActionsMenu - Dropdown menu for event management actions
 import { useState } from 'react';
-import { 
+import {
   MoreHorizontal, 
   Edit3, 
-  Share2, 
   Download, 
   Archive, 
   Trash2,
-  Copy,
-  Check
+  Check,
+  ExternalLink,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -52,16 +51,16 @@ export const EventActionsMenu = ({
   const [showArchiveDialog, setShowArchiveDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isArchiving, setIsArchiving] = useState(false);
-  const [copiedLink, setCopiedLink] = useState(false);
+  const [copiedPlanLink, setCopiedPlanLink] = useState(false);
 
-  const handleShare = async () => {
-    const eventLink = `${window.location.origin}/events/${eventId}`;
+  const handleSharePlan = async () => {
+    const planLink = `${window.location.origin}/plan/${eventId}`;
     try {
-      await navigator.clipboard.writeText(eventLink);
-      setCopiedLink(true);
-      setTimeout(() => setCopiedLink(false), 2000);
+      await navigator.clipboard.writeText(planLink);
+      setCopiedPlanLink(true);
+      setTimeout(() => setCopiedPlanLink(false), 2000);
     } catch (err) {
-      console.error('Failed to copy link:', err);
+      console.error('Failed to copy plan link:', err);
     }
   };
 
@@ -122,16 +121,16 @@ export const EventActionsMenu = ({
             Edit Event
           </DropdownMenuItem>
           
-          <DropdownMenuItem onClick={handleShare} className="cursor-pointer">
-            {copiedLink ? (
+          <DropdownMenuItem onClick={handleSharePlan} className="cursor-pointer">
+            {copiedPlanLink ? (
               <>
                 <Check className="w-4 h-4 mr-2 text-confirmed" />
                 <span className="text-confirmed">Link Copied!</span>
               </>
             ) : (
               <>
-                <Share2 className="w-4 h-4 mr-2" />
-                Share Event
+                <ExternalLink className="w-4 h-4 mr-2" />
+                Share Plan
               </>
             )}
           </DropdownMenuItem>

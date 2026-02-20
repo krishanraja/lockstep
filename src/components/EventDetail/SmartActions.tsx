@@ -57,13 +57,13 @@ export const SmartActions = ({
     });
   }
 
-  // Medium priority: Share event link
+  // Medium priority: Share plan link
   actions.push({
     id: 'share',
     icon: Share2,
-    label: 'Share RSVP Link',
-    description: 'Copy link to send to guests',
-    priority: totalGuests === 0 ? 'high' : 'medium',
+    label: 'Share Plan Link',
+    description: 'Copy the public plan page link',
+    priority: 'medium',
     onClick: onShare,
   });
 
