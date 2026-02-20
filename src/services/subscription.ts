@@ -10,6 +10,7 @@ export type PricingTier = 'free' | 'pro' | 'wedding' | 'business' | 'annual_pro'
 export interface TierLimits {
   guests: number;
   nudges: number; // -1 = unlimited
+  eventsLimit: number; // -1 = unlimited
   aiSummaries: boolean;
   whatsapp: boolean;
   export: boolean;
@@ -24,50 +25,55 @@ export const TIER_LIMITS: Record<PricingTier, TierLimits> = {
   free: {
     guests: 15,
     nudges: 3,
+    eventsLimit: 3,
     aiSummaries: false,
     whatsapp: false,
     export: false,
     priorityAi: false,
     analytics: false,
     teamAccess: false,
-    unlimitedEvents: true, // Free users can create unlimited events
+    unlimitedEvents: false,
   },
   pro: {
     guests: 75,
     nudges: 20,
+    eventsLimit: -1, // unlimited
     aiSummaries: true,
     whatsapp: true,
     export: false,
     priorityAi: false,
     analytics: false,
     teamAccess: false,
-    unlimitedEvents: false,
+    unlimitedEvents: true,
   },
   wedding: {
     guests: 150,
-    nudges: -1, // unlimited
+    nudges: -1,
+    eventsLimit: -1,
     aiSummaries: true,
     whatsapp: true,
     export: true,
     priorityAi: true,
     analytics: false,
     teamAccess: false,
-    unlimitedEvents: false,
+    unlimitedEvents: true,
   },
   business: {
     guests: 200,
-    nudges: -1, // unlimited
+    nudges: -1,
+    eventsLimit: -1,
     aiSummaries: true,
     whatsapp: true,
     export: true,
     priorityAi: true,
     analytics: true,
     teamAccess: true,
-    unlimitedEvents: false,
+    unlimitedEvents: true,
   },
   annual_pro: {
     guests: 75,
     nudges: 20,
+    eventsLimit: -1,
     aiSummaries: true,
     whatsapp: true,
     export: false,
@@ -446,12 +452,53 @@ export function getTierInfo(tier: PricingTier): {
   };
 }
 
+/**
+ * Check if user can create more events
+ */
+export async function canCreateEvent(userId: string): Promise<{
+  allowed: boolean;
+  reason?: string;
+  eventsUsed?: number;
+  eventsLimit?: number;
+}> {
+  // Get user's subscription
+  const subscription = await getSubscription(userId);
+  const limits = subscription.limits;
 
+  // Unlimited events
+  if (limits.eventsLimit === -1 || limits.unlimitedEvents) {
+    return { allowed: true };
+  }
 
+  // Count user's existing events
+  const { count, error } = await supabase
+    .from('events')
+    .select('*', { count: 'exact', head: true })
+    .eq('organiser_id', userId);
 
+  if (error) {
+    console.error('[canCreateEvent] Error counting events:', error);
+    return {
+      allowed: false,
+      reason: 'Failed to check event limit',
+    };
+  }
 
+  const eventsUsed = count || 0;
+  const eventsLimit = limits.eventsLimit;
 
+  if (eventsUsed >= eventsLimit) {
+    return {
+      allowed: false,
+      reason: `You've reached your limit of ${eventsLimit} events. Upgrade to Pro for unlimited events.`,
+      eventsUsed,
+      eventsLimit,
+    };
+  }
 
-
-
-
+  return {
+    allowed: true,
+    eventsUsed,
+    eventsLimit,
+  };
+}

@@ -12,6 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { format, differenceInDays } from 'date-fns';
 import { UpgradeModal } from '@/components/UpgradeModal';
 import { UsageIndicator } from '@/components/UsageIndicator';
+import { GuestManager } from '@/components/GuestManager';
 import { 
   AIAssistant,
   SmartActions,
@@ -19,7 +20,9 @@ import {
   TimelineView,
   VoiceFAB,
   EventActionsMenu,
-  EditEventModal
+  EditEventModal,
+  BlockManager,
+  QuestionManager
 } from '@/components/EventDetail';
 import { 
   canSendNudge, 
@@ -55,6 +58,12 @@ interface Block {
   end_time: string | null;
 }
 
+interface Question {
+  id: string;
+  question_text: string;
+  order_index?: number;
+}
+
 interface RSVPCount {
   blockId: string;
   blockName: string;
@@ -79,6 +88,7 @@ const EventDetail = () => {
   const [event, setEvent] = useState<Event | null>(null);
   const [guests, setGuests] = useState<Guest[]>([]);
   const [blocks, setBlocks] = useState<Block[]>([]);
+  const [questions, setQuestions] = useState<Question[]>([]);
   const [rsvpCounts, setRsvpCounts] = useState<RSVPCount[]>([]);
   const [guestRsvps, setGuestRsvps] = useState<GuestRSVP[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -146,6 +156,16 @@ const EventDetail = () => {
         .order('order_index');
 
       if (cancelled.current) return;
+
+      // Load questions
+      const { data: questionsData } = await supabase
+        .from('questions')
+        .select('*')
+        .eq('event_id', eventId)
+        .order('order_index');
+
+      if (cancelled.current) return;
+      if (questionsData) setQuestions(questionsData);
 
       if (blocksData) {
         setBlocks(blocksData);
@@ -354,6 +374,81 @@ const EventDetail = () => {
     setShareError('Scheduled reminders are coming soon! For now, use the "Nudge" button to send reminders manually.');
   };
 
+  // Guest management functions
+  const handleUpdateGuests = async (updatedGuests: Guest[]) => {
+    if (!id) return;
+
+    try {
+      // Get current guest IDs from DB
+      const { data: currentGuests } = await supabase
+        .from('guests')
+        .select('id')
+        .eq('event_id', id);
+
+      const currentIds = new Set(currentGuests?.map(g => g.id) || []);
+      const updatedIds = new Set(updatedGuests.map(g => g.id));
+
+      // Find guests to delete (in current but not in updated)
+      const toDelete = Array.from(currentIds).filter(gid => !updatedIds.has(gid));
+
+      // Find guests to insert (in updated but not in current)
+      const toInsert = updatedGuests.filter(g => !currentIds.has(g.id));
+
+      // Find guests to update (in both)
+      const toUpdate = updatedGuests.filter(g => currentIds.has(g.id));
+
+      // Execute deletes
+      if (toDelete.length > 0) {
+        await supabase
+          .from('guests')
+          .delete()
+          .in('id', toDelete);
+      }
+
+      // Execute inserts
+      if (toInsert.length > 0) {
+        await supabase
+          .from('guests')
+          .insert(
+            toInsert.map(g => ({
+              id: g.id,
+              event_id: id,
+              name: g.name,
+              email: g.email,
+              phone: g.phone,
+              status: g.status || 'pending',
+            }))
+          );
+      }
+
+      // Execute updates
+      for (const guest of toUpdate) {
+        await supabase
+          .from('guests')
+          .update({
+            name: guest.name,
+            email: guest.email,
+            phone: guest.phone,
+            status: guest.status,
+          })
+          .eq('id', guest.id);
+      }
+
+      // Reload guests from DB
+      const { data: refreshedGuests } = await supabase
+        .from('guests')
+        .select('*')
+        .eq('event_id', id);
+
+      if (refreshedGuests) {
+        setGuests(refreshedGuests);
+      }
+    } catch (error) {
+      console.error('[EventDetail] Error updating guests:', error);
+      setShareError('Failed to update guests. Please try again.');
+    }
+  };
+
   const daysUntilEvent = event?.start_date 
     ? differenceInDays(new Date(event.start_date), new Date())
     : null;
@@ -516,6 +611,13 @@ const EventDetail = () => {
                 isNudgeLoading={isSendingNudge}
               />
 
+              {/* Custom Questions */}
+              <QuestionManager
+                eventId={id!}
+                questions={questions}
+                onUpdate={() => loadEventData(id!, { current: false })}
+              />
+
               {/* Usage indicator */}
               {eventUsage && eventUsage.nudgesLimit !== -1 && (
                 <div className="p-4 rounded-xl bg-card border border-border/50">
@@ -564,7 +666,16 @@ const EventDetail = () => {
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
+              className="space-y-6"
             >
+              {/* Guest Management */}
+              <GuestManager
+                eventId={id!}
+                guests={guests}
+                onUpdateGuests={handleUpdateGuests}
+              />
+
+              {/* Guest Grid - RSVP tracking */}
               <GuestGrid
                 guests={guests.map(g => ({
                   id: g.id,
@@ -617,7 +728,16 @@ const EventDetail = () => {
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
+              className="space-y-6"
             >
+              {/* Time Blocks Management */}
+              <BlockManager
+                eventId={id!}
+                blocks={blocks}
+                onUpdate={() => loadEventData(id!, { current: false })}
+              />
+
+              {/* Timeline Visualization */}
               <TimelineView
                 blocks={blocks}
                 rsvpCounts={rsvpCounts}

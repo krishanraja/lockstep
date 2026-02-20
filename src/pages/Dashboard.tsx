@@ -5,8 +5,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Calendar, LogOut, Crown, User, Archive, Trash2, CheckSquare, Square, MoreVertical, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { UsageSummary } from '@/components/UsageIndicator';
-import { TIER_LIMITS } from '@/services/subscription';
+import { TIER_LIMITS, canCreateEvent } from '@/services/subscription';
 import { EventCard, EventCardSkeletonList } from '@/components/Dashboard';
+import { UpgradeModal } from '@/components/UpgradeModal';
 import { 
   useCurrentUser, 
   useDashboardData, 
@@ -25,6 +26,10 @@ const Dashboard = () => {
   // Dropdown menu state
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  
+  // Upgrade modal state
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [eventLimitMessage, setEventLimitMessage] = useState<string | null>(null);
   
   // Close menu when clicking outside
   useEffect(() => {
@@ -202,7 +207,19 @@ const Dashboard = () => {
             
             {/* Create event button */}
             <button
-              onClick={() => navigate('/create')}
+              onClick={async () => {
+                if (!user?.id) return;
+                
+                // Check if user can create more events
+                const limitCheck = await canCreateEvent(user.id);
+                if (!limitCheck.allowed) {
+                  setEventLimitMessage(limitCheck.reason || 'Event limit reached');
+                  setShowUpgradeModal(true);
+                  return;
+                }
+                
+                navigate('/create');
+              }}
               className="w-10 h-10 rounded-full bg-primary flex items-center justify-center
                 hover:opacity-90 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
               aria-label="Create new event"
@@ -251,7 +268,19 @@ const Dashboard = () => {
               Create your first event and start collecting RSVPs
             </p>
             <button
-              onClick={() => navigate('/create')}
+              onClick={async () => {
+                if (!user?.id) return;
+                
+                // Check if user can create more events
+                const limitCheck = await canCreateEvent(user.id);
+                if (!limitCheck.allowed) {
+                  setEventLimitMessage(limitCheck.reason || 'Event limit reached');
+                  setShowUpgradeModal(true);
+                  return;
+                }
+                
+                navigate('/create');
+              }}
               className="px-6 py-3 rounded-xl bg-primary text-primary-foreground font-medium
                 flex items-center gap-2 hover:opacity-90 transition-opacity
                 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
@@ -382,6 +411,16 @@ const Dashboard = () => {
           </div>
         )}
       </main>
+
+      {/* Upgrade Modal */}
+      <UpgradeModal
+        isOpen={showUpgradeModal}
+        onClose={() => {
+          setShowUpgradeModal(false);
+          setEventLimitMessage(null);
+        }}
+        reason={eventLimitMessage || undefined}
+      />
     </div>
   );
 };
