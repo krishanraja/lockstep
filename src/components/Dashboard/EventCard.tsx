@@ -1,13 +1,11 @@
 // Refactored Event Card component with AI summary support
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { Users, ChevronRight, Sparkles, RefreshCw, Share2, Send, CheckSquare, Square } from 'lucide-react';
+import { Users, ChevronRight, Sparkles, RefreshCw, Share2, Send, CheckSquare, Square, Check } from 'lucide-react';
 import { format, differenceInDays } from 'date-fns';
 import type { Event, EventStats, AISummary } from '@/queries/event-queries';
 import { useAISummary } from '@/queries/event-queries';
-import { supabase } from '@/integrations/supabase/client';
-
 interface EventCardProps {
   event: Event;
   stats: EventStats | null;
@@ -21,7 +19,25 @@ interface EventCardProps {
 export const EventCard = ({ event, stats, index, isSelectMode = false, isSelected = false, onToggleSelect, onLongPress }: EventCardProps) => {
   const navigate = useNavigate();
   const [isHovered, setIsHovered] = useState(false);
-  
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [isInView, setIsInView] = useState(false);
+
+  // Intersection observer — only trigger AI call once the card scrolls into view
+  useEffect(() => {
+    if (!cardRef.current) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsInView(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: '100px' } // trigger slightly before fully visible
+    );
+    observer.observe(cardRef.current);
+    return () => observer.disconnect();
+  }, []);
+
   // Long press detection for mobile
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
   const isLongPress = useRef(false);
@@ -50,9 +66,9 @@ export const EventCard = ({ event, stats, index, isSelectMode = false, isSelecte
     onLongPress?.(event.id);
   }, [event.id, onLongPress]);
   
-  // Fetch AI summary for active events with stats
+  // Fetch AI summary only when card is in viewport
   const { data: aiSummary, isLoading: aiLoading } = useAISummary(
-    event.status === 'active' ? event : null,
+    event.status === 'active' && isInView ? event : null,
     stats
   );
 
@@ -77,21 +93,16 @@ export const EventCard = ({ event, stats, index, isSelectMode = false, isSelecte
   const daysUntil = getDaysUntil(event.start_date);
   const needsAttention = stats && stats.pendingCount >= 3;
 
-  // Quick action handlers
+  const [quickShareCopied, setQuickShareCopied] = useState(false);
+
   const handleQuickShare = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    // Get first guest's magic token for sharing
-    const { data: guests } = await supabase
-      .from('guests')
-      .select('magic_token')
-      .eq('event_id', event.id)
-      .not('magic_token', 'is', null)
-      .limit(1);
-    
-    if (guests && guests.length > 0 && guests[0].magic_token) {
-      const link = `${window.location.origin}/rsvp/${guests[0].magic_token}`;
+    const link = `${window.location.origin}/plan/${event.id}`;
+    try {
       await navigator.clipboard.writeText(link);
-    }
+      setQuickShareCopied(true);
+      setTimeout(() => setQuickShareCopied(false), 2000);
+    } catch { /* clipboard unavailable */ }
   };
 
   const handleQuickNudge = (e: React.MouseEvent) => {
@@ -102,6 +113,7 @@ export const EventCard = ({ event, stats, index, isSelectMode = false, isSelecte
 
   return (
     <motion.div
+      ref={cardRef}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.05 }}
@@ -127,13 +139,16 @@ export const EventCard = ({ event, stats, index, isSelectMode = false, isSelecte
           >
             <button
               onClick={handleQuickShare}
-              className="p-2 rounded-lg bg-background/90 backdrop-blur-sm border border-border/50
-                text-foreground hover:bg-primary hover:text-primary-foreground
-                transition-colors shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-              aria-label="Share RSVP link"
-              title="Share RSVP link"
+              className={`p-2 rounded-lg backdrop-blur-sm border shadow-lg transition-colors
+                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary
+                ${quickShareCopied
+                  ? 'bg-confirmed text-background border-confirmed'
+                  : 'bg-background/90 border-border/50 text-foreground hover:bg-primary hover:text-primary-foreground'
+                }`}
+              aria-label="Copy plan link"
+              title="Copy plan link"
             >
-              <Share2 className="w-4 h-4" />
+              {quickShareCopied ? <Check className="w-4 h-4" /> : <Share2 className="w-4 h-4" />}
             </button>
             {stats.pendingCount > 0 && (
               <button

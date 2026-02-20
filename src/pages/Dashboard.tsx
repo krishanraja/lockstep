@@ -2,7 +2,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Calendar, LogOut, Crown, User, Archive, Trash2, CheckSquare, Square, MoreVertical, X } from 'lucide-react';
+import { Plus, Calendar, LogOut, Crown, User, Archive, Trash2, CheckSquare, Square, MoreVertical, X, ArrowRight } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { UsageSummary } from '@/components/UsageIndicator';
 import { TIER_LIMITS, canCreateEvent } from '@/services/subscription';
@@ -254,40 +254,70 @@ const Dashboard = () => {
             </button>
           </div>
         ) : events.length === 0 ? (
-          // Empty state
+          // Empty state — template quick-start grid
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col items-center justify-center h-full text-center"
+            className="flex flex-col h-full px-2 py-6"
           >
-            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-              <Calendar className="w-8 h-8 text-primary" />
+            <div className="text-center mb-6">
+              <h2 className="text-xl font-display font-bold text-foreground mb-1">Create your first event</h2>
+              <p className="text-sm text-muted-foreground">Takes under 3 minutes. Pick a type to get started.</p>
             </div>
-            <h2 className="text-lg font-medium text-foreground mb-2">No events yet</h2>
-            <p className="text-sm text-muted-foreground mb-6 max-w-xs">
-              Create your first event and start collecting RSVPs
-            </p>
+
+            {/* Template quick-start cards */}
+            <div className="grid grid-cols-2 gap-3 mb-6">
+              {[
+                { id: 'bucks', icon: '🎉', label: 'Bucks Party', subtitle: 'Send him off in style' },
+                { id: 'hens', icon: '✨', label: "Hen's Party", subtitle: 'Celebrate the bride-to-be' },
+                { id: 'offsite', icon: '💼', label: 'Team Offsite', subtitle: 'Work hard, play harder' },
+                { id: 'birthday', icon: '🎂', label: 'Birthday', subtitle: 'Make it memorable' },
+                { id: 'wedding', icon: '💍', label: 'Wedding', subtitle: 'Every detail matters' },
+                { id: 'trip', icon: '✈️', label: 'Group Trip', subtitle: 'Adventure awaits' },
+              ].map((t, i) => (
+                <motion.button
+                  key={t.id}
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.05 }}
+                  onClick={async () => {
+                    if (!user?.id) return;
+                    const limitCheck = await canCreateEvent(user.id);
+                    if (!limitCheck.allowed) {
+                      setEventLimitMessage(limitCheck.reason || 'Event limit reached');
+                      setShowUpgradeModal(true);
+                      return;
+                    }
+                    navigate(`/create?template=${t.id}`);
+                  }}
+                  className="flex flex-col items-start p-4 rounded-2xl bg-card border border-border/50
+                    hover:border-primary/30 hover:bg-primary/5 transition-all text-left group"
+                >
+                  <span className="text-2xl mb-2">{t.icon}</span>
+                  <span className="font-medium text-sm text-foreground">{t.label}</span>
+                  <span className="text-xs text-muted-foreground mt-0.5">{t.subtitle}</span>
+                </motion.button>
+              ))}
+            </div>
+
+            {/* Fallback: blank custom event */}
             <button
               onClick={async () => {
                 if (!user?.id) return;
-                
-                // Check if user can create more events
                 const limitCheck = await canCreateEvent(user.id);
                 if (!limitCheck.allowed) {
                   setEventLimitMessage(limitCheck.reason || 'Event limit reached');
                   setShowUpgradeModal(true);
                   return;
                 }
-                
                 navigate('/create');
               }}
-              className="px-6 py-3 rounded-xl bg-primary text-primary-foreground font-medium
-                flex items-center gap-2 hover:opacity-90 transition-opacity
-                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-              aria-label="Create your first event"
+              className="flex items-center justify-center gap-2 py-3 rounded-xl border border-dashed border-border/50
+                text-sm text-muted-foreground hover:text-foreground hover:border-border transition-colors"
             >
-              <Plus className="w-5 h-5" />
-              Create Event
+              <Plus className="w-4 h-4" />
+              Start from scratch
+              <ArrowRight className="w-4 h-4 ml-1" />
             </button>
           </motion.div>
         ) : (

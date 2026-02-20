@@ -1,9 +1,9 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Check, Calendar, MapPin, ChevronRight, ChevronLeft, AlertCircle } from 'lucide-react';
+import { Check, Calendar, MapPin, ChevronRight, ChevronLeft, AlertCircle, CalendarPlus, Users } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 
 interface Block {
   id: string;
@@ -33,6 +33,8 @@ interface Event {
   location: string | null;
   start_date: string | null;
   end_date: string | null;
+  cover_image_url: string | null;
+  organiser_id: string;
 }
 
 type RSVPResponse = 'in' | 'maybe' | 'out';
@@ -64,6 +66,9 @@ const RSVPPage = () => {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [responses, setResponses] = useState<BlockRSVP[]>([]);
   const [answers, setAnswers] = useState<QuestionAnswer[]>([]);
+  const [organiserName, setOrganiserName] = useState<string | null>(null);
+  const [socialProof, setSocialProof] = useState<{ responded: number; total: number } | null>(null);
+  const [completionCounts, setCompletionCounts] = useState<Array<{ blockId: string; name: string; inCount: number }>>([]);
   
   // Auto-save key for localStorage
   const autoSaveKey = token ? `rsvp_autosave_${token}` : null;
@@ -106,6 +111,28 @@ const RSVPPage = () => {
       }
 
       setEvent(eventData);
+
+      // Fetch organiser display name (via SECURITY DEFINER function, callable by anon)
+      if (eventData.organiser_id) {
+        const { data: nameData } = await supabase
+          .rpc('get_organiser_display_name', { organiser_uuid: eventData.organiser_id });
+        if (!cancelled.current && nameData) {
+          setOrganiserName(nameData as string);
+        }
+      }
+
+      // Social proof: how many guests have already responded
+      const { data: allGuests } = await supabase
+        .from('guests')
+        .select('id, status')
+        .eq('event_id', guestData.event_id);
+
+      if (!cancelled.current && allGuests) {
+        setSocialProof({
+          responded: allGuests.filter(g => g.status === 'responded').length,
+          total: allGuests.length,
+        });
+      }
 
       // Load blocks
       const { data: blocksData } = await supabase
@@ -330,6 +357,23 @@ const RSVPPage = () => {
         localStorage.removeItem(autoSaveKey);
       }
 
+      // Fetch "in" counts for blocks guest said yes to (for completion social proof)
+      const inBlockIds = responses.filter(r => r.response === 'in').map(r => r.blockId);
+      if (inBlockIds.length > 0) {
+        const counts = await Promise.all(
+          inBlockIds.map(async (blockId) => {
+            const { data: rsvps } = await supabase
+              .from('rsvps')
+              .select('response')
+              .eq('block_id', blockId)
+              .eq('response', 'in');
+            const block = blocks.find(b => b.id === blockId);
+            return { blockId, name: block?.name || '', inCount: rsvps?.length || 0 };
+          })
+        );
+        setCompletionCounts(counts);
+      }
+
       setStep('complete');
     } catch (err: any) {
       console.error('[RSVPPage] Error submitting RSVP:', err);
@@ -381,6 +425,48 @@ const RSVPPage = () => {
 
   const confirmedCount = responses.filter(r => r.response === 'in').length;
 
+  const handleAddToCalendar = () => {
+    const inResponses = responses.filter(r => r.response === 'in');
+    if (inResponses.length === 0) return;
+
+    const formatICSDate = (iso: string) =>
+      iso.replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+
+    const vevents = inResponses.map(r => {
+      const block = blocks.find(b => b.id === r.blockId);
+      if (!block) return '';
+      const dtstart = block.start_time ? formatICSDate(block.start_time) : formatICSDate(event.start_date || new Date().toISOString());
+      const dtend = block.end_time ? formatICSDate(block.end_time) : dtstart;
+      return [
+        'BEGIN:VEVENT',
+        `DTSTART:${dtstart}`,
+        `DTEND:${dtend}`,
+        `SUMMARY:${event.title} — ${block.name}`,
+        event.location ? `LOCATION:${event.location}` : '',
+        `UID:${block.id}@lockstep`,
+        'END:VEVENT',
+      ].filter(Boolean).join('\r\n');
+    });
+
+    const ics = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//Lockstep//EN',
+      'CALSCALE:GREGORIAN',
+      'METHOD:PUBLISH',
+      ...vevents,
+      'END:VCALENDAR',
+    ].join('\r\n');
+
+    const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${event.title.replace(/\s+/g, '-')}.ics`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="h-dvh w-full flex flex-col bg-background overflow-hidden">
       {/* Progress bar */}
@@ -404,57 +490,99 @@ const RSVPPage = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="h-full flex flex-col p-6"
+            className="h-full flex flex-col overflow-y-auto"
           >
-            <div className="flex-1 flex flex-col items-center justify-center text-center">
+            {/* Cover image */}
+            {event.cover_image_url && (
+              <div className="w-full h-44 flex-shrink-0 relative overflow-hidden">
+                <img
+                  src={event.cover_image_url}
+                  alt={event.title}
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent" />
+              </div>
+            )}
+
+            <div className="flex-1 flex flex-col items-center justify-center text-center px-6 py-6">
               <motion.div
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 transition={{ delay: 0.1 }}
+                className="w-full max-w-sm"
               >
-                <p className="text-sm text-muted-foreground mb-2">You're invited to</p>
+                {/* Organiser byline */}
+                <p className="text-sm text-muted-foreground mb-1">
+                  {organiserName
+                    ? <><span className="font-medium text-foreground">{organiserName}</span> invited you to</>
+                    : 'You\'re invited to'
+                  }
+                </p>
+
                 <h1 className="text-2xl font-display font-bold text-foreground mb-4">
                   {event.title}
                 </h1>
-                
-                {event.location && (
-                  <div className="flex items-center justify-center gap-2 text-muted-foreground mb-2">
-                    <MapPin className="w-4 h-4" />
-                    <span>{event.location}</span>
-                  </div>
-                )}
-                
-                {event.start_date && (
-                  <div className="flex items-center justify-center gap-2 text-muted-foreground">
-                    <Calendar className="w-4 h-4" />
-                    <span>
-                      {format(new Date(event.start_date), 'MMM d')}
-                      {event.end_date && ` - ${format(new Date(event.end_date), 'MMM d, yyyy')}`}
-                    </span>
-                  </div>
-                )}
+
+                <div className="flex flex-col items-center gap-1.5 mb-4">
+                  {event.start_date && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Calendar className="w-4 h-4 flex-shrink-0" />
+                      <span>
+                        {format(parseISO(event.start_date), 'EEE, MMM d')}
+                        {event.end_date && ` – ${format(parseISO(event.end_date), 'MMM d, yyyy')}`}
+                      </span>
+                    </div>
+                  )}
+                  {event.location && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <MapPin className="w-4 h-4 flex-shrink-0" />
+                      <span>{event.location}</span>
+                    </div>
+                  )}
+                </div>
 
                 {event.description && (
-                  <p className="mt-4 text-sm text-muted-foreground max-w-xs">
+                  <p className="text-sm text-muted-foreground mb-4 max-w-xs mx-auto">
                     {event.description}
                   </p>
+                )}
+
+                {/* Social proof */}
+                {socialProof && socialProof.responded > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.25 }}
+                    className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl
+                      bg-confirmed/10 border border-confirmed/20 text-sm text-confirmed mb-2"
+                  >
+                    <Users className="w-4 h-4 flex-shrink-0" />
+                    <span>
+                      {socialProof.responded === socialProof.total - 1
+                        ? `Everyone else has responded — you're the last one!`
+                        : `${socialProof.responded} of ${socialProof.total} people have already responded`
+                      }
+                    </span>
+                  </motion.div>
                 )}
               </motion.div>
             </div>
 
-            <motion.button
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-              onClick={goNext}
-              className="w-full py-4 rounded-2xl bg-primary text-primary-foreground font-medium
-                flex items-center justify-center gap-2 hover:opacity-90 transition-opacity
-                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-              aria-label="Start RSVP process"
-            >
-              Let's RSVP
-              <ChevronRight className="w-5 h-5" />
-            </motion.button>
+            <div className="px-6 pb-8 flex-shrink-0">
+              <motion.button
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                onClick={goNext}
+                className="w-full py-4 rounded-2xl bg-primary text-primary-foreground font-medium
+                  flex items-center justify-center gap-2 hover:opacity-90 transition-opacity
+                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                aria-label="Start RSVP process"
+              >
+                Let's RSVP
+                <ChevronRight className="w-5 h-5" />
+              </motion.button>
+            </div>
           </motion.div>
         )}
 
@@ -762,7 +890,7 @@ const RSVPPage = () => {
             key="complete"
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="h-full flex flex-col items-center justify-center p-6 text-center"
+            className="h-full flex flex-col items-center justify-center p-6 text-center overflow-y-auto"
           >
             <motion.div
               initial={{ scale: 0 }}
@@ -772,24 +900,62 @@ const RSVPPage = () => {
             >
               <Check className="w-10 h-10 text-confirmed" />
             </motion.div>
-            
+
             <h1 className="text-2xl font-display font-bold text-foreground mb-2">
               You're all set!
             </h1>
             <p className="text-muted-foreground mb-1">
-              {confirmedCount > 0 
-                ? `You're in for ${confirmedCount} of ${blocks.length} sessions.`
+              {confirmedCount > 0
+                ? `You're in for ${confirmedCount} of ${blocks.length} ${blocks.length === 1 ? 'session' : 'sessions'}.`
                 : 'We\'ve recorded your response.'}
             </p>
-            {event.location && (
-              <p className="text-sm text-muted-foreground mt-4">
-                📍 {event.location}
-              </p>
-            )}
+
             {event.start_date && (
-              <p className="text-sm text-muted-foreground">
-                📅 {format(new Date(event.start_date), 'EEEE, MMMM d, yyyy')}
-              </p>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground mt-2">
+                <Calendar className="w-4 h-4" />
+                <span>{format(parseISO(event.start_date), 'EEEE, MMMM d, yyyy')}</span>
+              </div>
+            )}
+            {event.location && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
+                <MapPin className="w-4 h-4" />
+                <span>{event.location}</span>
+              </div>
+            )}
+
+            {/* Social proof per block */}
+            {completionCounts.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 }}
+                className="w-full max-w-xs mt-6 space-y-2"
+              >
+                {completionCounts.map(c => (
+                  <div key={c.blockId} className="flex items-center justify-between px-4 py-2.5
+                    rounded-xl bg-card border border-border/50 text-sm"
+                  >
+                    <span className="text-foreground font-medium">{c.name}</span>
+                    <span className="text-confirmed font-medium">{c.inCount} going</span>
+                  </div>
+                ))}
+              </motion.div>
+            )}
+
+            {/* Add to Calendar */}
+            {confirmedCount > 0 && (
+              <motion.button
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5 }}
+                onClick={handleAddToCalendar}
+                className="mt-6 flex items-center gap-2 px-5 py-3 rounded-xl
+                  bg-primary/10 text-primary border border-primary/20 text-sm font-medium
+                  hover:bg-primary/20 transition-colors"
+              >
+                <CalendarPlus className="w-4 h-4" />
+                Add to Calendar
+              </motion.button>
             )}
           </motion.div>
         )}

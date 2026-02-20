@@ -291,14 +291,37 @@ const EventDetail = () => {
     setIsSendingNudge(true);
     
     try {
-      for (const guest of pendingGuests) {
-        await supabase.functions.invoke('send-nudge', {
+      // Fetch an LLM-generated nudge template (1-hour cache, falls back to hardcoded)
+      const fallbackTemplate = `Hey {name}! Just a reminder to RSVP for ${event?.title}. We need your response to finalize plans. {link}`;
+      let nudgeTemplate = fallbackTemplate;
+      try {
+        const { data: templateData } = await supabase.functions.invoke('generate-summary', {
           body: {
-            guestId: guest.id,
             eventId: id,
-            channel: 'sms',
-            message: `Hey ${guest.name}! Just a reminder to RSVP for ${event?.title}. We need your response to finalize plans.`,
+            eventTitle: event?.title || '',
+            totalGuests: guests.length,
+            respondedCount: guests.filter(g => g.status === 'responded').length,
+            pendingCount: pendingGuests.length,
+            daysUntilEvent: daysUntilEvent ?? 0,
+            summaryType: 'nudge',
           },
+        });
+        if (templateData?.summary) {
+          nudgeTemplate = templateData.summary;
+        }
+      } catch {
+        // Use fallback — LLM not critical for nudges
+      }
+
+      for (const guest of pendingGuests) {
+        const rsvpLink = guest.magic_token
+          ? `${window.location.origin}/rsvp/${guest.magic_token}`
+          : '';
+        const message = nudgeTemplate
+          .replace('{name}', guest.name)
+          .replace('{link}', rsvpLink);
+        await supabase.functions.invoke('send-nudge', {
+          body: { guestId: guest.id, eventId: id, channel: 'sms', message },
         });
         await incrementNudgeCount(id);
       }

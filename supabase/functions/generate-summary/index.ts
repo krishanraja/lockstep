@@ -4,6 +4,7 @@ import { corsHeaders, handleCors } from '../_shared/cors.ts';
 import { callLLM } from '../_shared/llm-router.ts';
 
 const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+const NUDGE_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour for nudge templates
 
 interface BlockSummary {
   name: string;
@@ -19,8 +20,8 @@ interface RequestBody {
   respondedCount: number;
   pendingCount: number;
   daysUntilEvent: number;
-  blockSummaries: BlockSummary[];
-  summaryType: 'status' | 'blockers' | 'suggestions';
+  blockSummaries?: BlockSummary[];
+  summaryType: 'status' | 'blockers' | 'suggestions' | 'nudge';
   invalidate?: boolean;
 }
 
@@ -61,8 +62,9 @@ serve(async (req: Request) => {
           Record<string, { text: string; cached_at: string }> | undefined;
 
         if (cached?.[summaryType]) {
+          const ttl = summaryType === 'nudge' ? NUDGE_CACHE_TTL_MS : CACHE_TTL_MS;
           const age = Date.now() - new Date(cached[summaryType].cached_at).getTime();
-          if (age < CACHE_TTL_MS) {
+          if (age < ttl) {
             return new Response(
               JSON.stringify({ summary: cached[summaryType].text, model: 'cache' }),
               { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
@@ -95,6 +97,21 @@ Pending responses: ${pendingCount} of ${totalGuests}
 Days until event: ${daysUntilEvent}
 
 What is blocking this plan from being finalized? One sentence, be specific.`;
+    } else if (summaryType === 'nudge') {
+      prompt = `Write a friendly, concise SMS nudge for a guest who hasn't RSVP'd yet.
+
+Event: "${eventTitle}"
+Days until event: ${daysUntilEvent}
+Responded so far: ${respondedCount} of ${totalGuests}
+
+Rules:
+- Address the guest as {name} (placeholder — will be replaced)
+- Include the RSVP link as {link} (placeholder — will be replaced)
+- Keep it under 160 characters total including the placeholders
+- Warm and personal tone, gentle urgency — not pushy
+- No emojis. No hashtags.
+
+Return only the message text, nothing else.`;
     } else {
       prompt = `You are an event planning assistant. Suggest the next action.
 
@@ -105,14 +122,17 @@ Days until event: ${daysUntilEvent}
 What should the organizer do next? One specific, actionable sentence.`;
     }
 
-    const response = await callLLM({ prompt, maxTokens: 100, temperature: 0.5 });
+    const response = await callLLM({ prompt, maxTokens: 120, temperature: 0.6 });
+
+    const fallbackMessages: Record<string, string> = {
+      status: `${respondedCount} of ${totalGuests} have responded.`,
+      blockers: pendingCount > 0 ? `${pendingCount} people haven't responded yet.` : 'No blockers.',
+      suggestions: pendingCount > 0 ? 'Send a reminder to pending guests.' : 'All responses received!',
+      nudge: `Hey {name}! Just a reminder to RSVP for ${eventTitle}. {link}`,
+    };
 
     const summaryText = response.error
-      ? ({
-          status: `${respondedCount} of ${totalGuests} have responded.`,
-          blockers: pendingCount > 0 ? `${pendingCount} people haven't responded yet.` : 'No blockers.',
-          suggestions: pendingCount > 0 ? 'Send a reminder to pending guests.' : 'All responses received!',
-        })[summaryType]
+      ? (fallbackMessages[summaryType] || fallbackMessages.nudge)
       : response.text.trim();
 
     const model = response.error ? 'fallback' : response.model;

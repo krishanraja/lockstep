@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, User, LogOut, RefreshCw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -10,7 +10,7 @@ import {
   clearWizardState,
   hasPendingWizardState,
 } from '@/hooks/use-wizard-state';
-import { generateBlocks, generateCheckpoints, makePossessive } from '@/data/templates';
+import { generateBlocks, generateCheckpoints, makePossessive, templateById } from '@/data/templates';
 import { 
   withTimeout, 
   withRetry, 
@@ -34,6 +34,7 @@ const SESSION_CHECK_TIMEOUT = 5000; // 5 seconds for session check
 
 export function CreateWizard() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [progress, setProgress] = useState<OperationProgress>('idle');
   const [error, setError] = useState<string | null>(null);
@@ -196,6 +197,20 @@ export function CreateWizard() {
       }
     };
   }, [restoreState]);
+
+  // Pre-select template from ?template= query param (used by dashboard empty state)
+  useEffect(() => {
+    const templateParam = searchParams.get('template');
+    if (templateParam && state.step === 'type' && !state.template) {
+      const tpl = templateById[templateParam as keyof typeof templateById];
+      if (tpl) {
+        selectTemplate(tpl);
+        goNext(); // skip the type-selection step, go straight to host name
+      }
+    }
+  // Only run once on mount
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Venue types that should use "at" instead of "in"
   const venueTypes = [
@@ -546,7 +561,7 @@ export function CreateWizard() {
       });
 
       const guestsResult = await withTimeout(
-        supabase.from("guests").insert(guestRecords),
+        supabase.from("guests").insert(guestRecords).select('id, name, phone, magic_token'),
         OPERATION_TIMEOUT,
         'Adding guests timed out'
       );
@@ -555,6 +570,28 @@ export function CreateWizard() {
         throw guestsResult.error;
       }
       console.log('[createEventWithData] Guests created successfully');
+
+      // Auto-send initial invites to guests with phone numbers
+      const guestsWithPhone = (guestsResult.data || []).filter(
+        (g: { phone: string | null }) => g.phone
+      );
+      if (guestsWithPhone.length > 0) {
+        if (isMountedRef.current) setProgress('sending-invites');
+        const eventTitle = eventData.eventName;
+        const origin = window.location.origin;
+        for (const g of guestsWithPhone) {
+          const rsvpLink = g.magic_token ? `${origin}/rsvp/${g.magic_token}` : '';
+          const message = `Hey ${g.name}! You're invited to ${eventTitle}.${rsvpLink ? ` RSVP here: ${rsvpLink}` : ''}`;
+          try {
+            await supabase.functions.invoke('send-nudge', {
+              body: { guestId: g.id, eventId: event.id, channel: 'sms', message },
+            });
+          } catch (nudgeErr) {
+            console.warn('[createEventWithData] Failed to send invite to', g.name, nudgeErr);
+          }
+        }
+        console.log(`[createEventWithData] Sent invites to ${guestsWithPhone.length} guests`);
+      }
     }
 
     // Update progress: Complete

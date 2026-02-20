@@ -74,6 +74,7 @@ export type OperationProgress =
   | 'creating'
   | 'adding-details'
   | 'finalizing'
+  | 'sending-invites'
   | 'complete'
   | 'error';
 
@@ -86,6 +87,7 @@ export const progressMessages: Record<OperationProgress, string> = {
   creating: 'Creating event...',
   'adding-details': 'Adding details...',
   finalizing: 'Finalizing...',
+  'sending-invites': 'Sending invites...',
   complete: 'Done!',
   error: 'Something went wrong',
 };
