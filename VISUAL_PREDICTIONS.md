@@ -132,10 +132,10 @@ Add more characters for better security
 │  │Free │  │ Pro │  │Wedd │  │Busi │  │Annl │            │
 │  │     │  │Most │  │     │  │     │  │ Pro │            │
 │  │     │  │Pop! │  │     │  │     │  │     │            │
-│  │ $0  │  │ $19 │  │ $49 │  │ $99 │  │$199 │            │
+│  │ $0  │  │ $29 │  │ $49 │  │ $99 │  │$149 │            │
 │  │     │  │/evnt│  │/evnt│  │/evnt│  │/yr  │            │
 │  │     │  │     │  │     │  │     │  │     │            │
-│  │✓15  │  │✓50  │  │✓150 │  │✓200 │  │✓∞   │            │
+│  │✓15  │  │✓75  │  │✓150 │  │✓200 │  │✓∞   │            │
 │  │guest│  │guest│  │guest│  │guest│  │evnts│            │
 │  │     │  │     │  │     │  │     │  │     │            │
 │  │[Get]│  │[Upg]│  │[Upg]│  │[Upg]│  │[Upg]│            │
@@ -158,11 +158,11 @@ Add more characters for better security
 - Gray "Get Started" button
 
 **Pro Tier (Most Popular):**
-- $19/event
-- Up to 50 guests
-- Unlimited nudges
+- $29/event
+- Up to 75 guests
+- 20 nudges
 - ✓ AI summaries
-- ✓ CSV export
+- ✓ WhatsApp messaging
 - Primary colored "Upgrade" button
 - Badge: "Most Popular" at top
 
@@ -180,7 +180,7 @@ Add more characters for better security
 - ✓ Analytics dashboard
 
 **Annual Pro:**
-- $199/year
+- $149/year
 - Unlimited events
 - All Pro features
 

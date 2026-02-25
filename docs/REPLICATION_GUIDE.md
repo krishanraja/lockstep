@@ -287,12 +287,17 @@ Audit and fix:
 
 | Directory | Purpose |
 |-----------|---------|
+| `supabase/functions/_shared/` | Shared utilities (CORS, LLM router) |
 | `supabase/functions/generate-description/` | AI event descriptions |
 | `supabase/functions/generate-summary/` | AI organizer summaries |
 | `supabase/functions/send-nudge/` | SMS/WhatsApp sending |
 | `supabase/functions/fetch-pexels/` | Cover photo search |
 | `supabase/functions/create-checkout-session/` | Stripe checkout |
 | `supabase/functions/stripe-webhook/` | Payment processing |
+| `supabase/functions/send-otp/` | OTP delivery for phone verification |
+| `supabase/functions/verify-otp/` | OTP validation |
+| `supabase/functions/process-checkpoint/` | Scheduled nudge processing |
+| `supabase/functions/webhook-twilio/` | Inbound Twilio message handling |
 
 ---
 

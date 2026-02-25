@@ -99,10 +99,10 @@
 **What You'll See:**
 - 5 pricing cards in a grid:
   1. Free (15 guests, 3 nudges)
-  2. Pro ($19/event, 50 guests)
+  2. Pro ($29/event, 75 guests)
   3. Wedding ($49/event, 150 guests)
   4. Business ($99/event, 200 guests)
-  5. Annual Pro ($199/year, unlimited events)
+  5. Annual Pro ($149/year, unlimited events)
 - "Most Popular" badge on Pro tier
 - Usage-based recommendations (if coming from event)
 - FAQ accordion at bottom

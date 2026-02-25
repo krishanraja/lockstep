@@ -41,22 +41,26 @@ Supabase Backend
 ├── PostgreSQL (data)
 ├── Auth (organizers + guest tokens)
 ├── Edge Functions (nudges, AI)
-└── Storage (future: images)
+└── Storage (avatars bucket for profile images)
 ```
 
 ### Key Tables
 
 | Table | Purpose | Key Fields |
 |-------|---------|------------|
-| `events` | Event metadata | title, organiser_id, dates, cover_image |
-| `blocks` | Time blocks (activities) | name, start_time, end_time |
-| `guests` | Attendee list | name, email, phone, magic_token |
+| `events` | Event metadata | title, organiser_id, dates, cover_image_url, template, nudges_sent |
+| `blocks` | Time blocks (activities) | name, start_time, end_time, location, attendance_required |
+| `guests` | Attendee list | name, email, phone, magic_token, opted_out_at |
 | `rsvps` | Responses | guest_id, block_id, response |
 | `questions` | Custom questions | prompt, type, options |
-| `checkpoints` | Nudge schedule | trigger_at, type |
-| `nudges` | Sent messages | guest_id, channel, status |
+| `answers` | Guest answers to questions | guest_id, question_id, value |
+| `checkpoints` | Nudge schedule | trigger_at, type, name, auto_resolve_to |
+| `nudges` | Sent messages | guest_id, channel, status, message, delivered_at |
 | `subscriptions` | User tier info | user_id, tier, stripe_customer_id |
 | `event_purchases` | Per-event upgrades | event_id, tier, status |
+| `profiles` | User profiles | avatar_url, display_name, phone, phone_verified_at, preferences |
+| `phone_otps` | OTP verification | phone, otp_hash, expires_at, verified_at |
+| `stripe_products` | Stripe product mapping | product_id, price_id, tier |
 
 ### Key Pages
 
@@ -68,8 +72,13 @@ Supabase Backend
 | `/dashboard` | `Dashboard.tsx` | Event list, AI summaries |
 | `/events/:id` | `EventDetail.tsx` | Single event view |
 | `/rsvp/:token` | `RSVPPage.tsx` | Guest RSVP experience |
+| `/plan/:eventId` | `PublicPlanPage.tsx` | Public event plan (no auth) |
 | `/pricing` | `Pricing.tsx` | Tier comparison, Stripe checkout |
 | `/profile` | `Profile.tsx` | User settings |
+| `/blog` | `Blog.tsx` | Blog |
+| `/faq` | `FAQ.tsx` | FAQ |
+| `/terms` | `TermsOfService.tsx` | Terms of Service |
+| `/privacy` | `PrivacyPolicy.tsx` | Privacy Policy |
 
 ### Edge Functions
 
@@ -81,6 +90,10 @@ Supabase Backend
 | `fetch-pexels` | Cover photo search |
 | `create-checkout-session` | Stripe checkout |
 | `stripe-webhook` | Payment processing |
+| `send-otp` | OTP delivery for phone verification |
+| `verify-otp` | OTP validation |
+| `process-checkpoint` | Scheduled nudge processing |
+| `webhook-twilio` | Inbound message handling (STOP/HELP) |
 
 ### Security Model
 

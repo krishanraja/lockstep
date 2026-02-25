@@ -249,22 +249,145 @@ Location autocomplete for event creation.
 
 ---
 
-## Planned Features
+### 14. Public Plan Page
 
-### 14. Guest Portal
-Full guest management interface with response tracking.
+**Status**: ✅ Implemented
 
-### 15. Email Templates
-Branded invitation and reminder emails via Resend.
+Shareable public view of an event plan—no authentication required.
 
-### 16. Export/Import
-CSV export of responses, CSV import of guests.
+**Features**:
+- Cover image display
+- Event title, description, location, dates
+- Block schedule with times and attendance counts
+- Visual attendance bars (in/maybe/out percentages)
+- Privacy-respecting (no guest names or contacts shown)
+- "Powered by Lockstep" footer with branding
 
-### 17. Collaborative Organizing
-Multiple organizers per event with role-based permissions.
+**Route**: `/plan/:eventId`
 
-### 18. Analytics Dashboard
-Response time trends, channel effectiveness, conversion funnels.
+**Technical**:
+- `PublicPlanPage.tsx` component
+- Anonymous RLS policies enable read access
+- `get_organiser_display_name()` database function for host display
+
+---
+
+### 15. User Profiles & Phone Verification
+
+**Status**: ✅ Implemented
+
+User profile management with avatar upload and phone verification.
+
+**Features**:
+- Avatar upload via Supabase Storage (avatars bucket)
+- Phone number verification via OTP (SMS)
+- User preferences panel
+- Subscription display
+
+**Components**:
+- `Profile/AvatarUpload.tsx`
+- `Profile/PhoneVerification.tsx`
+- `Profile/PreferencesPanel.tsx`
+
+**Database**:
+```sql
+profiles (id, avatar_url, display_name, phone, phone_verified_at, timezone, preferences)
+phone_otps (id, phone, otp_hash, expires_at, verified_at)
+```
+
+**Edge Functions**:
+- `send-otp` — Delivers OTP code via SMS
+- `verify-otp` — Validates submitted OTP code
+
+---
+
+### 16. Email Templates
+
+**Status**: ✅ Implemented
+
+Branded Supabase auth email templates in `email-templates/`:
+
+| Template | Purpose |
+|----------|---------|
+| `confirmation.html` | Signup email confirmation |
+| `magic-link.html` | Passwordless sign-in |
+| `password-reset.html` | Password reset |
+| `email-change-confirmation.html` | New email confirmation |
+| `email-change-notification.html` | Old email notification |
+| `invite-user.html` | User invitation |
+
+---
+
+### 17. Legal Pages
+
+**Status**: ✅ Implemented
+
+- Terms of Service (`/terms`)
+- Privacy Policy (`/privacy`)
+
+---
+
+### 18. Blog & FAQ
+
+**Status**: ✅ Implemented
+
+- Blog page (`/blog`)
+- FAQ page (`/faq`)
+
+---
 
 ### 19. Inbound Message Handling
-STOP/HELP message processing via Twilio webhooks.
+
+**Status**: ✅ Implemented (Edge Function)
+
+STOP/HELP message processing via Twilio webhook.
+
+**Technical**:
+- Edge function: `webhook-twilio`
+- Processes inbound SMS messages
+- Handles opt-out (STOP) and help (HELP) keywords
+- Updates `guests.opted_out_at` for opt-outs
+
+---
+
+### 20. Guest Management (Post-Creation)
+
+**Status**: ✅ Implemented
+
+Full CRUD operations for guests after event creation.
+
+**Features**:
+- Add guests with name, email (optional), phone (required + validated)
+- Edit existing guests (inline editing)
+- Remove guests
+- Phone validation with visual feedback (E.164 normalization via `libphonenumber-js`)
+- RSVP status display (pending/responded)
+
+**Component**: `GuestManager.tsx`
+
+---
+
+### 21. Checkpoint Scheduling
+
+**Status**: ✅ Implemented (Edge Function)
+
+Automated nudge scheduling and processing.
+
+**Technical**:
+- Edge function: `process-checkpoint`
+- Queries checkpoints that have reached their trigger time
+- Identifies non-responding guests
+- Dispatches nudges via appropriate channels
+
+---
+
+## Planned Features
+
+### 22. Export/Import
+CSV export of responses, CSV import of guests.
+
+### 23. Collaborative Organizing
+Multiple organizers per event with role-based permissions.
+
+### 24. Analytics Dashboard
+Response time trends, channel effectiveness, conversion funnels.

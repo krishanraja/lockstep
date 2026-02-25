@@ -51,7 +51,7 @@ npm install
 npm run dev
 ```
 
-The app will be available at `http://localhost:8080`.
+The app will be available at `http://localhost:5173`.
 
 ## Project Structure
 
@@ -61,16 +61,24 @@ lockstep/
 │   ├── components/       # React components
 │   │   ├── ui/           # shadcn/ui primitives
 │   │   ├── CreateWizard/ # 6-step event creation wizard
+│   │   ├── Dashboard/    # Dashboard components
+│   │   ├── EventDetail/  # Event detail components
+│   │   ├── Profile/      # Profile & avatar components
 │   │   └── animations/   # Framer Motion components
 │   ├── hooks/            # Custom React hooks
-│   ├── pages/            # Route pages
+│   ├── pages/            # Route pages (14 pages)
+│   ├── queries/          # TanStack Query hooks
 │   ├── services/         # API & business logic
 │   ├── integrations/     # Supabase client & types
-│   └── lib/              # Utilities
+│   ├── data/             # Static data & templates
+│   ├── utils/            # Utility functions
+│   └── lib/              # Shared utilities
 ├── supabase/
-│   ├── functions/        # Edge Functions (Deno)
-│   └── migrations/       # Database migrations
+│   ├── functions/        # Edge Functions (Deno, 10 functions)
+│   └── migrations/       # Database migrations (7 files)
 ├── docs/                 # Comprehensive documentation
+├── email-templates/      # Supabase auth email templates
+├── scripts/              # Build & utility scripts
 └── public/               # Static assets
 ```
 
@@ -106,6 +114,7 @@ Comprehensive documentation is available in the `/docs` folder:
 | `VITE_SUPABASE_URL` | Supabase project URL |
 | `VITE_SUPABASE_PUBLISHABLE_KEY` | Supabase anon key |
 | `VITE_GOOGLE_PLACES_API_KEY` | Google Places API key |
+| `VITE_STRIPE_PUBLISHABLE_KEY` | Stripe publishable key |
 
 ### Backend (Supabase Edge Functions)
 
@@ -114,9 +123,12 @@ Comprehensive documentation is available in the `/docs` folder:
 | `GOOGLE_AI_API_KEY` | Google AI (Gemini) API key |
 | `OPENAI_API_KEY` | OpenAI API key (fallback) |
 | `TWILIO_ACCOUNT_SID` | Twilio Account SID |
-| `TWILIO_API_SECRET` | Twilio API Secret |
+| `TWILIO_AUTH_TOKEN` | Twilio Auth Token |
 | `RESEND_API_KEY` | Resend email API key |
+| `STRIPE_SECRET_KEY` | Stripe secret key |
+| `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret |
 | `PEXELS_API_KEY` | Pexels API for cover photos |
+| `OTP_SECRET` | Secret for OTP generation |
 
 See [ENV_VARIABLES.md](./docs/ENV_VARIABLES.md) for complete setup instructions.
 

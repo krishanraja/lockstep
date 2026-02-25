@@ -106,7 +106,7 @@ This document defines success criteria, key metrics, and measurement approaches 
 
 | Criteria | Metric | Target |
 |----------|--------|--------|
-| Completion rate | % who finish all 5 steps | > 70% |
+| Completion rate | % who finish all 6 steps | > 70% |
 | Time to complete | Minutes from start to publish | < 10 min |
 | Blocks created | Average per event | 3-5 |
 | Guests added | Average per event | 20+ |

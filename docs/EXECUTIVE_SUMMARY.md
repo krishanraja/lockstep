@@ -37,17 +37,25 @@ Lockstep introduces **block-based RSVPs**—guests respond to individual time bl
 ## Current Status
 
 - ✅ Core platform architecture complete
-- ✅ Database schema and RLS policies implemented
+- ✅ Database schema with 13 tables and RLS policies
 - ✅ 6-step conversational event creation wizard
 - ✅ Landing page with interactive demos
 - ✅ Guest RSVP experience (magic link, block-based responses)
 - ✅ Organizer dashboard with AI-powered summaries
-- ✅ Nudge system (SMS/WhatsApp via Twilio)
+- ✅ Nudge system (SMS/WhatsApp via Twilio) with checkpoint scheduling
 - ✅ Stripe integration (per-event pricing, subscriptions)
-- ✅ Production deployment on Vercel
-- 🔄 Guest management UI improvements in progress
+- ✅ Production deployment on Vercel (`inlockstep.ai`)
+- ✅ Guest management (full CRUD with phone validation)
+- ✅ User profiles with avatar upload and phone verification (OTP)
+- ✅ Public plan page for shareable event views
+- ✅ Branded email templates for Supabase auth
+- ✅ Inbound message handling (STOP/HELP via Twilio webhook)
+- ✅ Legal pages (Terms of Service, Privacy Policy)
+- ✅ Blog and FAQ pages
+- ✅ 10 Edge Functions deployed
 - 📋 CSV export/import planned
 - 📋 Analytics dashboard planned
+- 📋 Collaborative organizing planned
 
 ## Success Metrics
 
