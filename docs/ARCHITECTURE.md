@@ -63,7 +63,7 @@
 ```
 src/
 ├── components/
-│   ├── ui/              # shadcn/ui components (button, card, etc.)
+│   ├── ui/              # shadcn/ui components (40+ primitives)
 │   ├── CreateWizard/    # 6-step conversational event wizard
 │   │   ├── steps/       # Individual wizard steps
 │   │   │   ├── EventTypeStep.tsx
@@ -73,12 +73,36 @@ src/
 │   │   │   ├── GuestsStep.tsx
 │   │   │   └── ConfirmStep.tsx
 │   │   ├── components/  # Wizard sub-components
+│   │   │   ├── EditCheckpointsModal.tsx
+│   │   │   ├── EditQuestionsModal.tsx
+│   │   │   ├── EditTimeBlocksModal.tsx
+│   │   │   ├── EventPhotoSelector.tsx
+│   │   │   └── PlacesAutocomplete.tsx
 │   │   └── CreateWizard.tsx
+│   ├── Dashboard/       # Dashboard components
+│   │   ├── EventCard.tsx
+│   │   └── EventCardSkeleton.tsx
+│   ├── EventDetail/     # Event detail tabs & managers
+│   │   ├── AIAssistant.tsx
+│   │   ├── BlockManager.tsx
+│   │   ├── EditEventModal.tsx
+│   │   ├── EventActionsMenu.tsx
+│   │   ├── GuestGrid.tsx
+│   │   ├── QuestionManager.tsx
+│   │   ├── SmartActions.tsx
+│   │   ├── TimelineView.tsx
+│   │   └── VoiceFAB.tsx
+│   ├── Profile/         # Profile components
+│   │   ├── AvatarUpload.tsx
+│   │   ├── PhoneVerification.tsx
+│   │   └── PreferencesPanel.tsx
 │   ├── EventWizard/     # Legacy wizard (deprecated)
-│   ├── animations/      # Reveal, KineticText, etc.
+│   ├── animations/      # Reveal, KineticText, InteractiveElements
 │   ├── Hero.tsx         # Landing page hero
 │   ├── Features.tsx     # Feature grid
 │   ├── RSVPDemo.tsx     # Interactive demo
+│   ├── GuestManager.tsx # Guest CRUD component
+│   ├── StripeCheckout.tsx # Stripe checkout flow
 │   ├── UpgradeModal.tsx # Stripe checkout modal
 │   └── UsageIndicator.tsx
 │
@@ -88,7 +112,9 @@ src/
 │   ├── use-transition-feedback.ts  # Sound/haptics
 │   ├── use-mobile.tsx          # Responsive detection
 │   ├── use-wizard-state.ts     # CreateWizard state management
-│   └── use-scroll-animations.ts
+│   ├── use-scroll-animations.ts # Scroll-triggered animations
+│   ├── use-realtime-events.ts  # Supabase real-time subscriptions
+│   └── use-voice-commands.ts   # Voice command interface
 │
 ├── pages/
 │   ├── Index.tsx        # Landing page
@@ -97,8 +123,13 @@ src/
 │   ├── Dashboard.tsx    # Organizer dashboard
 │   ├── EventDetail.tsx  # Single event view
 │   ├── RSVPPage.tsx     # Guest RSVP experience
+│   ├── PublicPlanPage.tsx # Public event plan (no auth)
 │   ├── Pricing.tsx      # Pricing tiers
 │   ├── Profile.tsx      # User profile
+│   ├── Blog.tsx         # Blog
+│   ├── FAQ.tsx          # FAQ
+│   ├── TermsOfService.tsx # Terms of Service
+│   ├── PrivacyPolicy.tsx  # Privacy Policy
 │   └── NotFound.tsx     # 404
 │
 ├── services/
@@ -111,8 +142,19 @@ src/
 │       ├── client.ts    # Supabase client instance
 │       └── types.ts     # Generated TypeScript types
 │
+├── queries/
+│   └── event-queries.ts # TanStack Query hooks for events
+│
+├── data/
+│   ├── question-library.ts  # Question templates
+│   └── templates/       # Event type templates (wedding, bucks, etc.)
+│
+├── utils/
+│   └── phoneValidator.ts # Phone number validation & E.164 normalization
+│
 ├── lib/
-│   └── utils.ts         # Utility functions (cn, etc.)
+│   ├── utils.ts         # Utility functions (cn, etc.)
+│   └── async-utils.ts   # Async utility helpers
 │
 ├── index.css            # Global styles, CSS variables
 └── main.tsx             # App entry point
@@ -219,9 +261,17 @@ const { play, pause, isPlaying } = useAutoPlay(goNext, 6000);
 | `generate-description` | Event creation | AI-generated event descriptions (Gemini) |
 | `generate-summary` | On demand | AI summary of responses for organizers |
 | `send-nudge` | Manual / Scheduled | Send SMS/WhatsApp via Twilio |
-| `fetch-pexels` | Event creation | Cover photo search |
+| `fetch-pexels` | Event creation | Cover photo search via Pexels API |
 | `create-checkout-session` | Upgrade flow | Create Stripe Checkout session |
 | `stripe-webhook` | Incoming | Process Stripe payment events |
+| `send-otp` | Phone verification | Deliver OTP code via SMS |
+| `verify-otp` | Phone verification | Validate submitted OTP code |
+| `process-checkpoint` | Scheduled | Process nudge checkpoints/triggers |
+| `webhook-twilio` | Incoming SMS | Handle inbound messages (STOP/HELP) |
+
+Shared utilities in `_shared/`:
+- `cors.ts` — CORS headers for browser access
+- `llm-router.ts` — LLM provider routing (Gemini primary, OpenAI fallback)
 
 ---
 

@@ -57,7 +57,7 @@ npm run dev
 npm run build
 ```
 
-The development server runs at `http://localhost:8080`.
+The development server runs at `http://localhost:5173`.
 
 ---
 
@@ -82,13 +82,17 @@ The development server runs at `http://localhost:8080`.
 lockstep/
 ├── src/
 │   ├── components/           # React components
-│   │   ├── ui/               # shadcn/ui primitives
+│   │   ├── ui/               # shadcn/ui primitives (40+ components)
 │   │   ├── CreateWizard/     # 6-step event creation wizard
 │   │   │   ├── steps/        # Individual wizard steps
 │   │   │   └── components/   # Wizard sub-components
+│   │   ├── Dashboard/        # Dashboard event cards & skeletons
+│   │   ├── EventDetail/      # Event detail tabs & managers
+│   │   ├── Profile/          # Avatar, phone verification, preferences
+│   │   ├── EventWizard/      # Legacy wizard (deprecated)
 │   │   └── animations/       # Framer Motion components
 │   ├── hooks/                # Custom React hooks
-│   ├── pages/                # Route pages
+│   ├── pages/                # Route pages (14 pages)
 │   │   ├── Index.tsx         # Landing page
 │   │   ├── Auth.tsx          # Authentication
 │   │   ├── CreateEvent.tsx   # Event wizard
@@ -96,24 +100,41 @@ lockstep/
 │   │   ├── EventDetail.tsx   # Single event view
 │   │   ├── RSVPPage.tsx      # Guest RSVP experience
 │   │   ├── Pricing.tsx       # Pricing tiers
-│   │   └── Profile.tsx       # User profile
+│   │   ├── Profile.tsx       # User profile
+│   │   ├── PublicPlanPage.tsx # Public event plan view
+│   │   ├── Blog.tsx          # Blog page
+│   │   ├── FAQ.tsx           # FAQ page
+│   │   ├── TermsOfService.tsx # Terms of Service
+│   │   ├── PrivacyPolicy.tsx # Privacy Policy
+│   │   └── NotFound.tsx      # 404 page
+│   ├── queries/              # TanStack Query hooks
+│   │   └── event-queries.ts  # Event data fetching
 │   ├── services/             # Business logic
 │   │   ├── subscription.ts   # Tier limits, billing
 │   │   ├── llm/              # AI integration
 │   │   └── places/           # Google Places API
 │   ├── integrations/         # External integrations
 │   │   └── supabase/         # Supabase client & types
-│   └── lib/                  # Utilities
+│   ├── data/                 # Static data & event templates
+│   ├── utils/                # Utility functions (phone validation)
+│   └── lib/                  # Shared utilities (cn, async-utils)
 ├── supabase/
 │   ├── functions/            # Edge Functions (Deno)
+│   │   ├── _shared/          # Shared utilities (CORS, LLM router)
 │   │   ├── generate-description/
 │   │   ├── generate-summary/
 │   │   ├── send-nudge/
 │   │   ├── fetch-pexels/
 │   │   ├── create-checkout-session/
-│   │   └── stripe-webhook/
-│   └── migrations/           # Database migrations
+│   │   ├── stripe-webhook/
+│   │   ├── send-otp/
+│   │   ├── verify-otp/
+│   │   ├── process-checkpoint/
+│   │   └── webhook-twilio/
+│   └── migrations/           # Database migrations (7 files)
 ├── docs/                     # This documentation
+├── email-templates/          # Supabase auth email templates
+├── scripts/                  # Build & utility scripts
 └── public/                   # Static assets
 ```
 
@@ -129,8 +150,13 @@ lockstep/
 | `/dashboard` | Organizer dashboard | Yes |
 | `/events/:id` | Event detail | Yes |
 | `/rsvp/:token` | Guest RSVP | No (magic link) |
+| `/plan/:eventId` | Public event plan | No |
 | `/pricing` | Pricing tiers | No |
 | `/profile` | User profile | Yes |
+| `/blog` | Blog | No |
+| `/faq` | FAQ | No |
+| `/terms` | Terms of Service | No |
+| `/privacy` | Privacy Policy | No |
 
 ---
 
@@ -144,6 +170,10 @@ lockstep/
 | `fetch-pexels` | Cover photo search |
 | `create-checkout-session` | Stripe Checkout session creation |
 | `stripe-webhook` | Stripe payment event processing |
+| `send-otp` | OTP delivery for phone verification |
+| `verify-otp` | OTP validation |
+| `process-checkpoint` | Scheduled nudge checkpoint processing |
+| `webhook-twilio` | Inbound Twilio message handling (STOP/HELP) |
 
 ---
 
@@ -151,16 +181,19 @@ lockstep/
 
 | Table | Purpose |
 |-------|---------|
-| `events` | Event metadata (title, dates, location) |
+| `events` | Event metadata (title, dates, location, cover image) |
 | `blocks` | Time blocks/activities within events |
 | `guests` | Invitees with magic tokens |
 | `rsvps` | Guest responses per block |
 | `questions` | Custom questions for events |
 | `answers` | Guest answers to questions |
-| `checkpoints` | Nudge schedule |
+| `checkpoints` | Nudge schedule and triggers |
 | `nudges` | Sent message audit log |
-| `subscriptions` | User subscription status |
-| `event_purchases` | Per-event upgrades |
+| `subscriptions` | User subscription status and tier |
+| `event_purchases` | Per-event tier upgrades |
+| `profiles` | User profile information (avatar, phone, preferences) |
+| `phone_otps` | Phone number OTP verification records |
+| `stripe_products` | Stripe product/price mapping |
 
 ---
 
@@ -186,4 +219,4 @@ lockstep/
 
 ---
 
-*Last updated: January 2025*
+*Last updated: February 2026*

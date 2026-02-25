@@ -6,9 +6,11 @@ These variables are exposed to the browser and must be prefixed with `VITE_`:
 
 | Variable | Description |
 |----------|-------------|
+| `VITE_SUPABASE_PROJECT_ID` | Supabase project ID |
 | `VITE_SUPABASE_URL` | Supabase project URL |
 | `VITE_SUPABASE_PUBLISHABLE_KEY` | Supabase anon/publishable key (safe for client-side) |
 | `VITE_GOOGLE_PLACES_API_KEY` | Google Places API key for location autocomplete |
+| `VITE_STRIPE_PUBLISHABLE_KEY` | Stripe publishable key (starts with `pk_live_` or `pk_test_`) |
 
 ## Backend (Supabase Edge Function Secrets)
 
@@ -24,6 +26,7 @@ These are configured in Supabase Dashboard → Edge Functions → Secrets:
 | `STRIPE_SECRET_KEY` | Stripe secret key for payments | ✅ |
 | `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret | ✅ |
 | `PEXELS_API_KEY` | Pexels API key for cover photos | ✅ |
+| `OTP_SECRET` | Secret key for OTP generation (phone verification) | ✅ |
 
 ## Setup Instructions
 
@@ -44,7 +47,7 @@ These are configured in Supabase Dashboard → Edge Functions → Secrets:
 1. Go to Google Cloud Console
 2. Enable Places API and Maps JavaScript API
 3. Create an API key with appropriate restrictions:
-   - HTTP referrers: `inlockstep.ai/*`, `localhost:8080/*`
+   - HTTP referrers: `inlockstep.ai/*`, `localhost:5173/*`
 4. Add the key to Vercel as `VITE_GOOGLE_PLACES_API_KEY`
 
 ### Stripe
@@ -70,13 +73,23 @@ These are configured in Supabase Dashboard → Edge Functions → Secrets:
 2. Create an API key
 3. Add as `PEXELS_API_KEY`
 
+### Stripe (Frontend)
+
+1. Go to Stripe Dashboard → Developers → API keys
+2. Copy the Publishable Key (starts with `pk_live_` or `pk_test_`)
+3. Add as `VITE_STRIPE_PUBLISHABLE_KEY` in Vercel environment variables
+
 ### Google AI (Gemini)
 
 1. Go to Google AI Studio (aistudio.google.com)
 2. Create an API key
 3. Add as `GOOGLE_AI_API_KEY`
 
+### OTP Secret
 
+1. Generate a random 32+ character secret string
+2. Add as `OTP_SECRET` in Supabase secrets
+3. Used by `send-otp` and `verify-otp` edge functions for phone verification
 
 
 

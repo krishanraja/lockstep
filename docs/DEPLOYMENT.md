@@ -14,7 +14,7 @@ Lockstep uses a modern JAMstack architecture with:
 |-------------|-----|--------|---------|
 | Production | `inlockstep.ai` | `main` | Live users |
 | Preview | PR-specific URLs | Feature branches | PR review |
-| Development | `localhost:8080` | Local | Development |
+| Development | `localhost:5173` | Local | Development |
 
 ---
 
@@ -71,9 +71,13 @@ Migrations are SQL files in `supabase/migrations/`:
 
 ```
 supabase/migrations/
-├── 20251225063926_initial_schema.sql
-├── 20251226120000_add_schema_updates.sql
-└── ...
+├── 20251225063926_0d42f361-1101-4c95-ac6e-2341d3c1e04a.sql  # Initial schema
+├── 20251226140000_schema_enhancements.sql                     # Field additions, answers & subscriptions tables
+├── 20251227000000_event_purchases.sql                         # Billing tables, stripe_products
+├── 20260103000000_add_cover_image.sql                         # Cover photo support
+├── 20260105000000_add_profiles.sql                            # Profiles, phone_otps, avatars bucket
+├── 20260220000000_public_plan_rls.sql                         # Anonymous RLS for public plan page
+└── 20260220000001_organiser_display_name_fn.sql               # Display name function for RSVP
 ```
 
 **Creating migrations**: Use Supabase CLI or Dashboard.
@@ -89,11 +93,24 @@ Located in `supabase/functions/`:
 
 ```
 supabase/functions/
+├── _shared/                    # Shared utilities
+│   ├── cors.ts
+│   └── llm-router.ts
 ├── generate-description/
 │   └── index.ts
 ├── generate-summary/
 │   └── index.ts
 ├── send-nudge/
+│   └── index.ts
+├── fetch-pexels/
+│   └── index.ts
+├── create-checkout-session/
+│   └── index.ts
+├── stripe-webhook/
+│   └── index.ts
+├── send-otp/
+│   └── index.ts
+├── verify-otp/
 │   └── index.ts
 ├── process-checkpoint/
 │   └── index.ts
@@ -119,6 +136,7 @@ Set in Vercel Project Settings → Environment Variables:
 | `VITE_SUPABASE_URL` | Supabase project URL |
 | `VITE_SUPABASE_PUBLISHABLE_KEY` | Supabase anon key |
 | `VITE_GOOGLE_PLACES_API_KEY` | Google Places API key |
+| `VITE_STRIPE_PUBLISHABLE_KEY` | Stripe publishable key |
 
 ### Backend (Supabase Secrets)
 
@@ -129,8 +147,12 @@ Set in Supabase Dashboard → Edge Functions → Secrets:
 | `GOOGLE_AI_API_KEY` | Primary LLM (Gemini) |
 | `OPENAI_API_KEY` | Fallback LLM |
 | `TWILIO_ACCOUNT_SID` | SMS/WhatsApp |
-| `TWILIO_API_SECRET` | SMS authentication |
+| `TWILIO_AUTH_TOKEN` | SMS authentication |
 | `RESEND_API_KEY` | Email sending |
+| `STRIPE_SECRET_KEY` | Payment processing |
+| `STRIPE_WEBHOOK_SECRET` | Webhook verification |
+| `PEXELS_API_KEY` | Cover photo search |
+| `OTP_SECRET` | Phone verification OTP |
 
 See `docs/ENV_VARIABLES.md` for complete documentation.
 

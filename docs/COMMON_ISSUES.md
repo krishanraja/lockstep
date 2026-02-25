@@ -102,7 +102,7 @@ Cannot find module '@/components/Something'
 2. Set **Site URL** to your production URL: `https://inlockstep.ai`
 3. Add to **Redirect URLs**:
    - `https://inlockstep.ai/**`
-   - `http://localhost:8080/**` (for local development)
+   - `http://localhost:5173/**` (for local development)
 
 **Optional: Customize Email Templates**
 
@@ -298,7 +298,7 @@ ALTER PUBLICATION supabase_realtime ADD TABLE your_table;
 3. Function not redeployed after adding secret
 
 **Solutions**:
-1. Add via Lovable secrets tool
+1. Add via Supabase Dashboard → Edge Functions → Secrets
 2. Check exact name (case-sensitive)
 3. Redeploy function
 
@@ -474,7 +474,7 @@ console.log({ data, error });
 
 ### Read Supabase Logs
 
-Use Lovable's log tools:
-- Database logs
-- Auth logs
-- Edge function logs
+Use Supabase Dashboard:
+- Database logs (Logs → Postgres)
+- Auth logs (Logs → Auth)
+- Edge function logs (Logs → Edge Functions)

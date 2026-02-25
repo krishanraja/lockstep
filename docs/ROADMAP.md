@@ -1428,9 +1428,11 @@ Sentry.init({
 
 | Tier | Price | Limits |
 |------|-------|--------|
-| Free | $0 | 1 event, 8 guests, limited nudges |
-| Per Event | $19 | Unlimited guests, full messaging |
-| Annual | $49/year | Unlimited events + guests |
+| Free | $0 | 3 events, 15 guests, 3 nudges |
+| Pro | $29/event | 75 guests, 20 nudges, AI summaries |
+| Wedding | $49/event | 150 guests, unlimited nudges, priority AI |
+| Business | $99/event | 200 guests, unlimited nudges, team access |
+| Annual Pro | $149/year | Unlimited events, Pro features |
 
 ### Stripe Integration
 ```typescript
@@ -1675,7 +1677,7 @@ const sendableGuests = guests.filter(g => g.status !== 'opted_out');
 ### Magic Token URL Format
 ```
 Production: https://inlockstep.ai/rsvp/{32-char-hex-token}
-Development: http://localhost:8080/rsvp/{token}
+Development: http://localhost:5173/rsvp/{token}
 ```
 
 ### Default Checkpoint Template (Bucks Weekend)

@@ -213,9 +213,9 @@ A mobile-first RSVP platform where:
 ### Database Enhancements
 
 **Migrations Applied**:
-1. `20251225063926_initial_schema.sql` - Core tables
-2. `20251226140000_schema_enhancements.sql` - Additional fields
-3. `20251227000000_event_purchases.sql` - Billing tables
+1. `20251225063926_0d42f361-...` - Core tables (events, blocks, guests, rsvps, questions, checkpoints, nudges)
+2. `20251226140000_schema_enhancements.sql` - Additional fields, answers & subscriptions tables
+3. `20251227000000_event_purchases.sql` - Billing tables (event_purchases, stripe_products)
 4. `20260103000000_add_cover_image.sql` - Cover photo support
 
 ### Performance Optimization
@@ -225,10 +225,79 @@ A mobile-first RSVP platform where:
 - Eager loading for critical pages (Index, Auth, CreateEvent)
 - TanStack Query caching configuration
 - Loading states with spinner fallback
+- Manual chunk splitting for vendor and UI libraries
 
 ---
 
-## Current State (January 2025)
+## Phase 4: User Profiles & Phone Verification (January 2025)
+
+### User Profiles
+
+**Accomplishments**:
+- `profiles` table with avatar, display name, phone, timezone, preferences
+- `phone_otps` table for OTP verification
+- Supabase Storage `avatars` bucket for profile images
+- Avatar upload component
+- Phone verification via OTP (SMS)
+- User preferences panel
+
+**Migrations Applied**:
+5. `20260105000000_add_profiles.sql` - Profiles, phone_otps, avatars bucket
+
+**Edge Functions**:
+- `send-otp` — OTP delivery via SMS
+- `verify-otp` — OTP validation
+
+---
+
+## Phase 5: P0 Fixes & Production Hardening (February 2026)
+
+### Guest Management (Post-Creation)
+
+**Accomplishments**:
+- Full CRUD for guests after event creation (`GuestManager.tsx`)
+- Phone validation with `libphonenumber-js` (E.164 normalization)
+- Inline editing for guest name, email, phone
+- RSVP status display
+
+### Edit Mode Feature Parity
+
+**Accomplishments**:
+- `BlockManager.tsx` for time block management post-creation
+- `QuestionManager.tsx` for custom question management post-creation
+- Full CRUD operations integrated into EventDetail tabs
+
+### Public Plan Page
+
+**Accomplishments**:
+- Public shareable event view at `/plan/:eventId`
+- Anonymous RLS policies for read access
+- `get_organiser_display_name()` database function
+- No auth required, privacy-respecting (no guest data shown)
+
+**Migrations Applied**:
+6. `20260220000000_public_plan_rls.sql` - Anonymous access policies
+7. `20260220000001_organiser_display_name_fn.sql` - Display name function
+
+### Additional Pages
+
+**Accomplishments**:
+- Terms of Service (`/terms`)
+- Privacy Policy (`/privacy`)
+- Blog (`/blog`)
+- FAQ (`/faq`)
+
+### Production Audit
+
+**Accomplishments**:
+- Comprehensive code audit (AUDIT_SUMMARY.md, PRODUCTION_AUDIT_REPORT.md)
+- Visual predictions document (VISUAL_PREDICTIONS.md)
+- 4 critical issues identified and fixed (TypeScript errors, layout, imports)
+- Branded email templates for Supabase auth (6 templates)
+
+---
+
+## Current State (February 2026)
 
 ### Pages Implemented
 
@@ -240,8 +309,13 @@ A mobile-first RSVP platform where:
 | Dashboard | `/dashboard` | ✅ Complete |
 | Event Detail | `/events/:id` | ✅ Complete |
 | RSVP | `/rsvp/:token` | ✅ Complete |
+| Public Plan | `/plan/:eventId` | ✅ Complete |
 | Pricing | `/pricing` | ✅ Complete |
 | Profile | `/profile` | ✅ Complete |
+| Blog | `/blog` | ✅ Complete |
+| FAQ | `/faq` | ✅ Complete |
+| Terms of Service | `/terms` | ✅ Complete |
+| Privacy Policy | `/privacy` | ✅ Complete |
 | 404 | `*` | ✅ Complete |
 
 ### Edge Functions Deployed
@@ -254,16 +328,23 @@ A mobile-first RSVP platform where:
 | `fetch-pexels` | Cover photo search | ✅ Active |
 | `create-checkout-session` | Stripe checkout | ✅ Active |
 | `stripe-webhook` | Payment callbacks | ✅ Active |
+| `send-otp` | OTP delivery (phone verification) | ✅ Active |
+| `verify-otp` | OTP validation | ✅ Active |
+| `process-checkpoint` | Scheduled nudge processing | ✅ Active |
+| `webhook-twilio` | Inbound message handling | ✅ Active |
+
+### Database Tables (13)
+
+events, blocks, guests, rsvps, questions, answers, checkpoints, nudges, subscriptions, event_purchases, profiles, phone_otps, stripe_products
 
 ### Pending Features
 
 - [ ] Heatmap visualization for arrival/departure
-- [ ] Inbound message handling (STOP, HELP)
-- [ ] Status callbacks from Twilio
 - [ ] Escalation logic for nudges
 - [ ] Summary caching
-- [ ] CSV export
-- [ ] Guest manager UI improvements
+- [ ] CSV export/import
+- [ ] Collaborative organizing (multi-organizer)
+- [ ] Analytics dashboard
 
 ---
 
@@ -276,11 +357,41 @@ A mobile-first RSVP platform where:
 | 0.3.0 | 2024-12-30 | 6-step conversational wizard, AI integration |
 | 0.4.0 | 2025-01-02 | Stripe integration, pricing page, profile |
 | 0.5.0 | 2025-01-03 | Cover photos, Places autocomplete, polish |
+| 0.6.0 | 2025-01-05 | User profiles, phone verification, avatars |
+| 0.7.0 | 2026-02-20 | P0 fixes, public plan page, guest manager, email templates |
 | 1.0.0 | TBD | Public launch |
 
 ---
 
 ## Changelog
+
+### 2026-02-20
+
+**Added**:
+- Public plan page (`/plan/:eventId`) for shareable event views
+- Guest management post-creation (GuestManager component)
+- Block manager and question manager for EventDetail
+- Phone validation with `libphonenumber-js`
+- Terms of Service, Privacy Policy, Blog, FAQ pages
+- Branded email templates (6 templates)
+- `webhook-twilio` edge function for inbound messages
+- `process-checkpoint` edge function for scheduled nudges
+- Anonymous RLS policies for public access
+- `get_organiser_display_name()` database function
+
+**Fixed**:
+- Pricing page TypeScript build error (missing `isRecommended` prop)
+- Pricing page grid layout (5 columns too narrow)
+- Auth page logo import (hardcoded path → asset import)
+- Auth page redundant conditional logic
+
+### 2025-01-05
+
+**Added**:
+- User profiles table with avatar, phone, preferences
+- Phone OTP verification (send-otp, verify-otp edge functions)
+- Avatar upload via Supabase Storage
+- Profile components (AvatarUpload, PhoneVerification, PreferencesPanel)
 
 ### 2025-01-03
 
