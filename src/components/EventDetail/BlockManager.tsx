@@ -276,22 +276,22 @@ export const BlockManager = ({ eventId, blocks, onUpdate }: BlockManagerProps) =
                   </div>
                 </div>
 
-                <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
                   <button onClick={() => handleReorder(block.id, 'up')} disabled={index === 0}
-                    className="p-1.5 rounded-lg hover:bg-muted transition-colors disabled:opacity-30" title="Move up">
-                    <ArrowUp className="w-3.5 h-3.5 text-muted-foreground" />
+                    className="p-2.5 rounded-lg hover:bg-muted transition-colors disabled:opacity-30 min-w-[44px] min-h-[44px] flex items-center justify-center" title="Move up" aria-label="Move up">
+                    <ArrowUp className="w-4 h-4 text-muted-foreground" />
                   </button>
                   <button onClick={() => handleReorder(block.id, 'down')} disabled={index === blocks.length - 1}
-                    className="p-1.5 rounded-lg hover:bg-muted transition-colors disabled:opacity-30" title="Move down">
-                    <ArrowDown className="w-3.5 h-3.5 text-muted-foreground" />
+                    className="p-2.5 rounded-lg hover:bg-muted transition-colors disabled:opacity-30 min-w-[44px] min-h-[44px] flex items-center justify-center" title="Move down" aria-label="Move down">
+                    <ArrowDown className="w-4 h-4 text-muted-foreground" />
                   </button>
                   <button onClick={() => handleEdit(block)}
-                    className="p-1.5 rounded-lg hover:bg-muted transition-colors" title="Edit">
-                    <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
+                    className="p-2.5 rounded-lg hover:bg-muted transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center" title="Edit" aria-label="Edit">
+                    <Pencil className="w-4 h-4 text-muted-foreground" />
                   </button>
                   <button onClick={() => handleDelete(block.id)}
-                    className="p-1.5 rounded-lg hover:bg-destructive/10 transition-colors" title="Delete">
-                    <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                    className="p-2.5 rounded-lg hover:bg-destructive/10 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center" title="Delete" aria-label="Delete">
+                    <Trash2 className="w-4 h-4 text-destructive" />
                   </button>
                 </div>
               </div>

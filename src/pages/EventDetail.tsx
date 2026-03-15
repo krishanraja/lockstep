@@ -508,8 +508,9 @@ const EventDetail = () => {
         <div className="flex items-center justify-between">
           <button
             onClick={() => navigate('/dashboard')}
-            className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors
-              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-lg px-2 py-1"
+            className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors
+              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 
+              rounded-lg px-3 py-2.5 min-h-[44px]"
             aria-label="Go back to dashboard"
           >
             <ChevronLeft className="w-5 h-5" />

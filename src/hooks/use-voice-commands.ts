@@ -79,7 +79,7 @@ interface UseVoiceCommandsReturn {
 }
 
 // Parse voice command to extract intent and entities
-function parseVoiceCommand(transcript: string): VoiceCommand {
+export function parseCommand(transcript: string): VoiceCommand {
   const lower = transcript.toLowerCase().trim();
   
   const command: VoiceCommand = {
@@ -190,7 +190,7 @@ export function useVoiceCommands(options: UseVoiceCommandsOptions = {}): UseVoic
       onTranscript?.(currentTranscript, !!finalTranscript);
 
       if (finalTranscript) {
-        const command = parseVoiceCommand(finalTranscript);
+        const command = parseCommand(finalTranscript);
         onCommand?.(command);
       }
     };

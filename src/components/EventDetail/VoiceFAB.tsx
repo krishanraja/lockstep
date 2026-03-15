@@ -1,8 +1,8 @@
-// Voice FAB - Floating action button for voice commands
-import { useState, useEffect } from 'react';
+// Voice FAB - Floating action button for voice commands with text fallback
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mic, MicOff, Volume2, X, Loader2 } from 'lucide-react';
-import { useVoiceCommands, VoiceCommand, generateVoiceResponse } from '@/hooks/use-voice-commands';
+import { Mic, MicOff, Volume2, X, Loader2, Keyboard, Send } from 'lucide-react';
+import { useVoiceCommands, VoiceCommand, generateVoiceResponse, parseCommand } from '@/hooks/use-voice-commands';
 
 interface VoiceFABProps {
   eventTitle: string;
@@ -27,6 +27,9 @@ export const VoiceFAB = ({
   const [isExpanded, setIsExpanded] = useState(false);
   const [response, setResponse] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isTextMode, setIsTextMode] = useState(false);
+  const [textInput, setTextInput] = useState('');
+  const textInputRef = useRef<HTMLInputElement>(null);
 
   const handleCommand = async (command: VoiceCommand) => {
     setIsProcessing(true);
@@ -93,9 +96,24 @@ export const VoiceFAB = ({
     setResponse(null);
   };
 
-  if (!isSupported) {
-    return null; // Don't show FAB if voice not supported
-  }
+  // Handle text input submission
+  const handleTextSubmit = async () => {
+    if (!textInput.trim()) return;
+    
+    const command = parseCommand(textInput);
+    setTextInput('');
+    await handleCommand(command);
+  };
+
+  // Toggle text mode when voice not available
+  const toggleTextMode = () => {
+    setIsTextMode(prev => !prev);
+    if (!isTextMode) {
+      setTimeout(() => textInputRef.current?.focus(), 100);
+    }
+  };
+
+  // Always show FAB - with text fallback when voice not supported
 
   return (
     <>
@@ -128,20 +146,60 @@ export const VoiceFAB = ({
 
               {/* Content */}
               <div className="p-4 min-h-[120px] flex flex-col items-center justify-center">
-                {/* Error state */}
-                {error && (
-                  <div className="text-center">
-                    <MicOff className="w-8 h-8 text-out mx-auto mb-2" />
-                    <p className="text-sm text-out">
-                      {error === 'not-allowed' 
-                        ? 'Microphone access denied. Please enable it in your browser settings.'
-                        : 'Voice recognition error. Please try again.'}
+                {/* Text input mode */}
+                {isTextMode && !response && !isProcessing && (
+                  <div className="w-full">
+                    <div className="flex gap-2">
+                      <input
+                        ref={textInputRef}
+                        type="text"
+                        value={textInput}
+                        onChange={(e) => setTextInput(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleTextSubmit()}
+                        placeholder="Type a command..."
+                        className="flex-1 px-4 py-3 rounded-xl bg-muted border border-border/50
+                          text-foreground placeholder:text-muted-foreground text-sm
+                          focus:outline-none focus:ring-2 focus:ring-primary/50"
+                        style={{ fontSize: '16px' }}
+                      />
+                      <button
+                        onClick={handleTextSubmit}
+                        disabled={!textInput.trim()}
+                        className="p-3 rounded-xl bg-primary text-primary-foreground
+                          disabled:opacity-50 disabled:cursor-not-allowed
+                          hover:bg-primary/90 transition-colors min-w-[48px] min-h-[48px]"
+                      >
+                        <Send className="w-5 h-5" />
+                      </button>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2 text-center">
+                      Try: "Who's coming?" or "Send nudges"
                     </p>
                   </div>
                 )}
 
+                {/* Error state */}
+                {error && !isTextMode && (
+                  <div className="text-center">
+                    <MicOff className="w-8 h-8 text-out mx-auto mb-2" />
+                    <p className="text-sm text-out mb-3">
+                      {error === 'not-allowed' 
+                        ? 'Microphone access denied.'
+                        : 'Voice recognition error.'}
+                    </p>
+                    <button
+                      onClick={toggleTextMode}
+                      className="px-4 py-2 rounded-full bg-muted text-sm text-foreground
+                        hover:bg-muted/80 transition-colors inline-flex items-center gap-2"
+                    >
+                      <Keyboard className="w-4 h-4" />
+                      Type instead
+                    </button>
+                  </div>
+                )}
+
                 {/* Listening state */}
-                {isListening && !error && (
+                {isListening && !error && !isTextMode && (
                   <div className="text-center">
                     {/* Voice waveform visualization */}
                     <div className="flex items-center justify-center gap-1 h-12 mb-3">
@@ -182,38 +240,39 @@ export const VoiceFAB = ({
                   </div>
                 )}
 
-                {/* Ready state */}
-                {!isListening && !error && !response && !isProcessing && (
+                {/* Ready state - with text fallback option */}
+                {!isListening && !error && !response && !isProcessing && !isTextMode && (
                   <div className="text-center">
                     <Mic className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-                    <p className="text-sm text-muted-foreground">
-                      Tap the mic to start speaking
+                    <p className="text-sm text-muted-foreground mb-3">
+                      {isSupported ? 'Tap the mic to start speaking' : 'Voice not supported on this browser'}
                     </p>
+                    <button
+                      onClick={toggleTextMode}
+                      className="px-4 py-2 rounded-full bg-muted text-sm text-foreground
+                        hover:bg-muted/80 transition-colors inline-flex items-center gap-2"
+                    >
+                      <Keyboard className="w-4 h-4" />
+                      Type instead
+                    </button>
                   </div>
                 )}
               </div>
 
-              {/* Suggestions */}
-              {!isListening && !response && (
+              {/* Suggestions - always show unless processing/response */}
+              {!isListening && !response && !isProcessing && !isTextMode && (
                 <div className="px-4 pb-4">
-                  <p className="text-xs text-muted-foreground mb-2">Try saying:</p>
+                  <p className="text-xs text-muted-foreground mb-2">Try {isSupported ? 'saying' : 'tapping'}:</p>
                   <div className="flex flex-wrap gap-2">
                     {["Who's coming?", "What's the status?", "Send nudges"].map((suggestion) => (
                       <button
                         key={suggestion}
                         onClick={async () => {
-                          const command = {
-                            command: suggestion,
-                            type: 'query' as const,
-                            intent: suggestion.includes('coming') ? 'attendance' as const 
-                              : suggestion.includes('status') ? 'status' as const 
-                              : 'nudge' as const,
-                            entities: {},
-                          };
+                          const command = parseCommand(suggestion);
                           await handleCommand(command);
                         }}
-                        className="px-3 py-1.5 rounded-full bg-muted text-xs text-foreground
-                          hover:bg-muted/80 transition-colors"
+                        className="px-4 py-2.5 rounded-full bg-muted text-sm text-foreground
+                          hover:bg-muted/80 transition-colors min-h-[44px]"
                       >
                         "{suggestion}"
                       </button>
